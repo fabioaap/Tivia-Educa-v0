@@ -1,0 +1,43 @@
+# Ignore dependencies
+node_modules/
+package-lock.json
+
+# Ignore build outputs
+dist/
+*.local
+
+# Ignore environment variables
+.env
+.env.local
+.env.*.local
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Ignore logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignore test coverage
+coverage/
+.nyc_output/
+
+# Ignore Playwright artifacts
+playwright-report/
+test-results/
+playwright/.cache/
+
+# Ignore temp files
+*.tmp
+*.temp
+.cache/

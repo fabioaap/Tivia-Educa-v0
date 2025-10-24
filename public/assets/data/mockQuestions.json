@@ -1,0 +1,323 @@
+[
+  {
+    "id": "q1",
+    "text": "Em qual frase há um erro de concordância verbal?",
+    "enunciado": "Pedro e Ana viajaram nas férias.",
+    "alternatives": [
+      "Ela gosta de ler livros de aventura.",
+      "Nós fomos ao parque ontem.",
+      "As crianças brinca no pátio da escola.",
+      "Eles estudaram para a prova."
+    ],
+    "correctIndex": 2,
+    "explanation": "O correto é 'As crianças BRINCAM' (plural).",
+    "difficulty": 2,
+    "areaId": "portugues",
+    "seriesId": "ef2",
+    "habilityId": "concordancia-verbal"
+  },
+  {
+    "id": "q2",
+    "text": "Quanto é 15 + 27?",
+    "alternatives": [
+      "40",
+      "42",
+      "45",
+      "38"
+    ],
+    "correctIndex": 1,
+    "explanation": "15 + 27 = 42",
+    "difficulty": 1,
+    "areaId": "matematica",
+    "seriesId": "ef1",
+    "habilityId": "adicao"
+  },
+  {
+    "id": "q3",
+    "text": "Qual é o processo de transformação de água líquida em vapor?",
+    "alternatives": [
+      "Condensação",
+      "Evaporação",
+      "Solidificação",
+      "Sublimação"
+    ],
+    "correctIndex": 1,
+    "explanation": "Evaporação é a passagem do estado líquido para o gasoso.",
+    "difficulty": 2,
+    "areaId": "ciencias",
+    "seriesId": "ef2",
+    "habilityId": "estados-materia"
+  },
+  {
+    "id": "q4",
+    "text": "Qual é o resultado de 8 × 7?",
+    "alternatives": [
+      "54",
+      "56",
+      "58",
+      "64"
+    ],
+    "correctIndex": 1,
+    "explanation": "8 × 7 = 56",
+    "difficulty": 2,
+    "areaId": "matematica",
+    "seriesId": "ef2",
+    "habilityId": "multiplicacao"
+  },
+  {
+    "id": "q5",
+    "text": "Complete: 'O livro ____ eu gostei muito está na biblioteca.'",
+    "alternatives": [
+      "que",
+      "onde",
+      "qual",
+      "quem"
+    ],
+    "correctIndex": 0,
+    "explanation": "Usamos 'que' como pronome relativo referindo-se a 'livro'.",
+    "difficulty": 3,
+    "areaId": "portugues",
+    "seriesId": "ef2",
+    "habilityId": "pronomes-relativos"
+  },
+  {
+    "id": "q6",
+    "text": "Qual é a capital do Brasil?",
+    "alternatives": [
+      "São Paulo",
+      "Rio de Janeiro",
+      "Brasília",
+      "Salvador"
+    ],
+    "correctIndex": 2,
+    "explanation": "Brasília é a capital federal do Brasil desde 1960.",
+    "difficulty": 1,
+    "areaId": "geografia",
+    "seriesId": "ef1",
+    "habilityId": "capitais"
+  },
+  {
+    "id": "q7",
+    "text": "Quanto é 100 ÷ 4?",
+    "alternatives": [
+      "20",
+      "25",
+      "30",
+      "35"
+    ],
+    "correctIndex": 1,
+    "explanation": "100 ÷ 4 = 25",
+    "difficulty": 2,
+    "areaId": "matematica",
+    "seriesId": "ef2",
+    "habilityId": "divisao"
+  },
+  {
+    "id": "q8",
+    "text": "Qual é o plural de 'cidadão'?",
+    "alternatives": [
+      "cidadões",
+      "cidadães",
+      "cidadãos",
+      "cidadans"
+    ],
+    "correctIndex": 2,
+    "explanation": "O plural correto de 'cidadão' é 'cidadãos'.",
+    "difficulty": 2,
+    "areaId": "portugues",
+    "seriesId": "ef2",
+    "habilityId": "plural"
+  },
+  {
+    "id": "q9",
+    "text": "Qual animal é mamífero?",
+    "alternatives": [
+      "Tubarão",
+      "Golfinho",
+      "Jacaré",
+      "Salmão"
+    ],
+    "correctIndex": 1,
+    "explanation": "O golfinho é um mamífero aquático.",
+    "difficulty": 1,
+    "areaId": "ciencias",
+    "seriesId": "ef1",
+    "habilityId": "classificacao-animais"
+  },
+  {
+    "id": "q10",
+    "text": "Qual é o resultado de 3² + 4²?",
+    "alternatives": [
+      "7",
+      "25",
+      "49",
+      "14"
+    ],
+    "correctIndex": 1,
+    "explanation": "3² = 9 e 4² = 16, logo 9 + 16 = 25",
+    "difficulty": 3,
+    "areaId": "matematica",
+    "seriesId": "ef2",
+    "habilityId": "potenciacao"
+  },
+  {
+    "id": "q11",
+    "text": "Qual é o sinônimo de 'feliz'?",
+    "alternatives": [
+      "Triste",
+      "Contente",
+      "Bravo",
+      "Cansado"
+    ],
+    "correctIndex": 1,
+    "explanation": "Contente é sinônimo de feliz.",
+    "difficulty": 1,
+    "areaId": "portugues",
+    "seriesId": "ef1",
+    "habilityId": "sinonimos"
+  },
+  {
+    "id": "q12",
+    "text": "Quantos continentes existem no mundo?",
+    "alternatives": [
+      "5",
+      "6",
+      "7",
+      "8"
+    ],
+    "correctIndex": 1,
+    "explanation": "Existem 6 continentes: África, América, Antártida, Ásia, Europa e Oceania.",
+    "difficulty": 2,
+    "areaId": "geografia",
+    "seriesId": "ef2",
+    "habilityId": "continentes"
+  },
+  {
+    "id": "q13",
+    "text": "Qual é a fração equivalente a 1/2?",
+    "alternatives": [
+      "2/3",
+      "2/4",
+      "3/5",
+      "3/4"
+    ],
+    "correctIndex": 1,
+    "explanation": "2/4 = 1/2 (simplificando por 2)",
+    "difficulty": 2,
+    "areaId": "matematica",
+    "seriesId": "ef2",
+    "habilityId": "fracoes"
+  },
+  {
+    "id": "q14",
+    "text": "Qual é o gênero textual de uma história com moral no final?",
+    "alternatives": [
+      "Notícia",
+      "Fábula",
+      "Receita",
+      "Carta"
+    ],
+    "correctIndex": 1,
+    "explanation": "Fábulas são narrativas curtas com animais personificados e moral.",
+    "difficulty": 2,
+    "areaId": "portugues",
+    "seriesId": "ef2",
+    "habilityId": "generos-textuais"
+  },
+  {
+    "id": "q15",
+    "text": "O que é fotossíntese?",
+    "alternatives": [
+      "Respiração dos animais",
+      "Processo de produção de alimento pelas plantas",
+      "Decomposição de matéria orgânica",
+      "Circulação do sangue"
+    ],
+    "correctIndex": 1,
+    "explanation": "Fotossíntese é o processo pelo qual plantas produzem seu próprio alimento usando luz solar.",
+    "difficulty": 3,
+    "areaId": "ciencias",
+    "seriesId": "ef2",
+    "habilityId": "fotossintese"
+  },
+  {
+    "id": "q16",
+    "text": "Quanto é 50% de 80?",
+    "alternatives": [
+      "30",
+      "35",
+      "40",
+      "45"
+    ],
+    "correctIndex": 2,
+    "explanation": "50% de 80 = 80 ÷ 2 = 40",
+    "difficulty": 2,
+    "areaId": "matematica",
+    "seriesId": "ef2",
+    "habilityId": "porcentagem"
+  },
+  {
+    "id": "q17",
+    "text": "Qual é o antônimo de 'alto'?",
+    "alternatives": [
+      "Grande",
+      "Baixo",
+      "Magro",
+      "Forte"
+    ],
+    "correctIndex": 1,
+    "explanation": "Baixo é o oposto (antônimo) de alto.",
+    "difficulty": 1,
+    "areaId": "portugues",
+    "seriesId": "ef1",
+    "habilityId": "antonimos"
+  },
+  {
+    "id": "q18",
+    "text": "Qual planeta é conhecido como 'Planeta Vermelho'?",
+    "alternatives": [
+      "Vênus",
+      "Marte",
+      "Júpiter",
+      "Saturno"
+    ],
+    "correctIndex": 1,
+    "explanation": "Marte é chamado de Planeta Vermelho por causa de sua cor avermelhada.",
+    "difficulty": 2,
+    "areaId": "ciencias",
+    "seriesId": "ef2",
+    "habilityId": "sistema-solar"
+  },
+  {
+    "id": "q19",
+    "text": "Qual é o perímetro de um quadrado com lado de 5 cm?",
+    "alternatives": [
+      "15 cm",
+      "20 cm",
+      "25 cm",
+      "30 cm"
+    ],
+    "correctIndex": 1,
+    "explanation": "Perímetro do quadrado = 4 × lado = 4 × 5 = 20 cm",
+    "difficulty": 2,
+    "areaId": "matematica",
+    "seriesId": "ef2",
+    "habilityId": "perimetro"
+  },
+  {
+    "id": "q20",
+    "text": "Qual é o aumentativo de 'casa'?",
+    "alternatives": [
+      "Casinha",
+      "Casarão",
+      "Casita",
+      "Caseta"
+    ],
+    "correctIndex": 1,
+    "explanation": "Casarão é o aumentativo de casa.",
+    "difficulty": 1,
+    "areaId": "portugues",
+    "seriesId": "ef1",
+    "habilityId": "aumentativo-diminutivo"
+  }
+]
