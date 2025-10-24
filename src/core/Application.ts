@@ -1,6 +1,6 @@
 import { Application } from 'pixi.js';
 import { GAME_CONFIG, DESIGN } from '@config/constants';
-import { SceneManager } from './SceneManager';
+import { SceneManager } from './SceneManager.js';
 
 export class GameApplication {
   public app: Application;

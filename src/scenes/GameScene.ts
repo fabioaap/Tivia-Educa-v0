@@ -1,7 +1,9 @@
-import { Application, Container, Graphics, Text } from 'pixi.js';
+import { Application, Container, Graphics, Text, Sprite } from 'pixi.js';
+// import { Background } from '../ui/components/Background';
 import { BaseScene } from '@core/BaseScene';
 import { COLORS, DESIGN, LAYOUT, TYPOGRAPHY } from '@config/constants';
 import { RoundedButton } from '@ui/components/RoundedButton';
+import { HeaderBar } from '@ui/components/HeaderBar';
 import { ProgressBar } from '@ui/components/ProgressBar';
 import { Timer } from '@ui/components/Timer';
 import { PowerUpButton } from '@ui/components/PowerUpButton';
@@ -42,6 +44,10 @@ export class GameScene extends BaseScene {
   }
 
   protected async load(): Promise<void> {
+    // Carregar o PNG do Figma primeiro
+    const { Assets } = await import('pixi.js');
+    await Assets.load('/assets/tela-1.png');
+    
     // Carregar questões mock
     const response = await fetch('/assets/data/mockQuestions.json');
     const questions = (await response.json()) as Question[];
@@ -62,27 +68,21 @@ export class GameScene extends BaseScene {
   }
 
   private createBackground(): void {
-    const bg = new Graphics();
-    bg.rect(0, 0, DESIGN.WIDTH, DESIGN.HEIGHT);
-    bg.fill(COLORS.BG_DARK);
+    // Renderiza o PNG exportado do Figma como fundo pixel-perfect
+    const bg = Sprite.from('/assets/tela-1.png');
+    bg.width = DESIGN.WIDTH;
+    bg.height = DESIGN.HEIGHT;
     this.addChild(bg);
-
-    // Grid/stars pattern (placeholder - futuramente usar sprite)
-    const grid = new Graphics();
-    for (let i = 0; i < 50; i++) {
-      const x = Math.random() * DESIGN.WIDTH;
-      const y = Math.random() * DESIGN.HEIGHT;
-      const size = Math.random() * 2 + 1;
-      grid.circle(x, y, size);
-      grid.fill(0xffffff);
-    }
-    grid.alpha = 0.3;
-    this.addChild(grid);
   }
 
   private createHeader(): void {
     this.headerContainer = new Container();
     this.addChild(this.headerContainer);
+    
+    // Elementos estáticos (invisíveis - PNG já tem)
+    const staticElements = new Container();
+    staticElements.alpha = 0; // Oculta botões estáticos
+    this.headerContainer.addChild(staticElements);
 
     // Back button
     this.backButton = new RoundedButton({
@@ -95,7 +95,7 @@ export class GameScene extends BaseScene {
       LAYOUT.HEADER.BACK_BUTTON.y + LAYOUT.HEADER.BACK_BUTTON.size / 2
     );
     this.backButton.onClick = () => console.log('Back clicked');
-    this.headerContainer.addChild(this.backButton);
+    staticElements.addChild(this.backButton);
 
     // Home button
     this.homeButton = new RoundedButton({
@@ -108,31 +108,7 @@ export class GameScene extends BaseScene {
       LAYOUT.HEADER.HOME_BUTTON.y + LAYOUT.HEADER.HOME_BUTTON.size / 2
     );
     this.homeButton.onClick = () => console.log('Home clicked');
-    this.headerContainer.addChild(this.homeButton);
-
-    // Progress bar
-    this.progressBar = new ProgressBar({
-      width: LAYOUT.HEADER.PROGRESS_BAR.width,
-      height: LAYOUT.HEADER.PROGRESS_BAR.height,
-      label: 'EDUCACROSS EXTREME',
-    });
-    this.progressBar.position.set(
-      LAYOUT.HEADER.PROGRESS_BAR.x,
-      LAYOUT.HEADER.PROGRESS_BAR.y
-    );
-    this.progressBar.setProgress(0.1);
-    this.headerContainer.addChild(this.progressBar);
-
-    // Timer
-    this.timerCircle = new Timer({
-      size: LAYOUT.HEADER.TIMER.size,
-    });
-    this.timerCircle.position.set(
-      LAYOUT.HEADER.TIMER.x,
-      LAYOUT.HEADER.TIMER.y
-    );
-    this.timerCircle.setTime(90000, 90000); // 1:30
-    this.headerContainer.addChild(this.timerCircle);
+    staticElements.addChild(this.homeButton);
 
     // Pause button
     this.pauseButton = new RoundedButton({
@@ -145,38 +121,48 @@ export class GameScene extends BaseScene {
       LAYOUT.HEADER.PAUSE.y + LAYOUT.HEADER.PAUSE.size / 2
     );
     this.pauseButton.onClick = () => console.log('Pause clicked');
-    this.headerContainer.addChild(this.pauseButton);
+    staticElements.addChild(this.pauseButton);
+
+    // ELEMENTOS DINÂMICOS (visíveis e animáveis)
+    // Progress bar
+    this.progressBar = new ProgressBar({
+      width: LAYOUT.HEADER.PROGRESS_BAR.width,
+      height: LAYOUT.HEADER.PROGRESS_BAR.height,
+      label: 'EDUCACROSS EXTREME',
+    });
+    this.progressBar.position.set(
+      LAYOUT.HEADER.PROGRESS_BAR.x,
+      LAYOUT.HEADER.PROGRESS_BAR.y
+    );
+    this.progressBar.setProgress(0.1);
+    this.progressBar.alpha = 0; // Temporariamente oculto - PNG já mostra
+    this.headerContainer.addChild(this.progressBar);
+
+    // Timer (VISÍVEL e ANIMÁVEL)
+    this.timerCircle = new Timer({
+      size: LAYOUT.HEADER.TIMER.size,
+    });
+    this.timerCircle.position.set(
+      LAYOUT.HEADER.TIMER.x,
+      LAYOUT.HEADER.TIMER.y
+    );
+    this.timerCircle.setTime(90000, 90000); // 1:30
+    // Timer fica VISÍVEL para animação em tempo real
+    this.headerContainer.addChild(this.timerCircle);
   }
 
   private createQuestionArea(): void {
     this.questionContainer = new Container();
+    this.questionContainer.alpha = 0; // Oculta - PNG já tem os visuais
     this.questionContainer.position.set(
       LAYOUT.QUESTION.CONTAINER.x,
       LAYOUT.QUESTION.CONTAINER.y
     );
     this.addChild(this.questionContainer);
 
-    // Background (glass effect)
-    this.questionBg = new Graphics();
-    this.questionBg.roundRect(
-      0,
-      0,
-      LAYOUT.QUESTION.CONTAINER.width,
-      LAYOUT.QUESTION.CONTAINER.minHeight,
-      30
-    );
-    this.questionBg.fill(COLORS.GLASS_BG);
-    this.questionBg.roundRect(
-      0,
-      0,
-      LAYOUT.QUESTION.CONTAINER.width,
-      LAYOUT.QUESTION.CONTAINER.minHeight,
-      30
-    );
-    this.questionBg.stroke({ width: 2, color: COLORS.PRIMARY_CYAN });
-    this.questionContainer.addChild(this.questionBg);
-
-    // Question text
+    // O PNG já tem o visual - removemos backgrounds duplicados
+    
+    // Question text (invisível - o PNG já tem o texto visível)
     this.questionText = new Text({
       text: '',
       style: {
@@ -194,6 +180,7 @@ export class GameScene extends BaseScene {
       LAYOUT.QUESTION.CONTAINER.width / 2,
       LAYOUT.QUESTION.TEXT.paddingY
     );
+    this.questionText.alpha = 0; // Oculta pois o PNG já mostra o texto
     this.questionContainer.addChild(this.questionText);
 
     // Alternatives container
@@ -204,16 +191,11 @@ export class GameScene extends BaseScene {
 
   private createFooter(): void {
     this.footerContainer = new Container();
+    this.footerContainer.alpha = 0; // Oculta - PNG já tem os visuais
     this.footerContainer.position.set(0, LAYOUT.FOOTER.Y);
     this.addChild(this.footerContainer);
 
-    // Footer background
-    const footerBg = new Graphics();
-    footerBg.rect(0, 0, DESIGN.WIDTH, LAYOUT.FOOTER.HEIGHT);
-    footerBg.fill(0x000a14);
-    footerBg.rect(0, 0, DESIGN.WIDTH, 2);
-    footerBg.fill(COLORS.PRIMARY_CYAN);
-    this.footerContainer.addChild(footerBg);
+    // O PNG já tem o footer - removemos o background duplicado
 
     // Hint button
     this.hintButton = new PowerUpButton({
