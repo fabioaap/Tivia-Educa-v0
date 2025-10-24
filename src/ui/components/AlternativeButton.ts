@@ -1,4 +1,4 @@
-import { Container, Graphics, Text } from 'pixi.js';
+import { Container, Graphics, Text, Sprite } from 'pixi.js';
 import { COLORS, TYPOGRAPHY, ANIMATIONS } from '@config/constants';
 import gsap from 'gsap';
 
@@ -9,15 +9,19 @@ export interface AlternativeButtonConfig {
   height: number;
   letter: string; // A, B, C, D, E
   text: string;
+  useFallback?: boolean; // Se true, usa Graphics como fallback
 }
 
 export class AlternativeButton extends Container {
   private bg: Graphics;
+  private sprites: Map<AlternativeState, Sprite | null> = new Map();
+  private currentSprite: Sprite | null = null;
   private letterText: Text;
   private contentText: Text;
   private config: AlternativeButtonConfig;
   private _state: AlternativeState = 'normal';
   private glowFilter?: gsap.core.Tween;
+  private useFallback = false;
 
   public onClick?: () => void;
 
@@ -25,9 +29,11 @@ export class AlternativeButton extends Container {
     super();
     this.config = config;
 
-    // Background
+    // Background (fallback) - criar ANTES de loadSprites
     this.bg = new Graphics();
     this.addChild(this.bg);
+    
+    this.loadSprites();
 
     // Letra (A, B, C, D)
     this.letterText = new Text({
@@ -61,6 +67,47 @@ export class AlternativeButton extends Container {
 
     this.draw();
     this.setupInteraction();
+  }
+
+  private loadSprites(): void {
+    const letter = this.config.letter.toLowerCase();
+    const states: AlternativeState[] = ['normal', 'hovered', 'correct', 'wrong'];
+    
+    let loadedCount = 0;
+    
+    for (const state of states) {
+      try {
+        // Ajusta para o formato: alternative-a-normal.png
+        const path = `/assets/ui/alternatives/alternative-${letter}-${state}.png`;
+        const sprite = Sprite.from(path);
+        
+        // Configura sprite
+        if (sprite.texture) {
+          sprite.width = this.config.width;
+          sprite.height = this.config.height;
+          sprite.visible = false;
+          this.sprites.set(state, sprite);
+          this.addChildAt(sprite, 0); // Adiciona atrás dos textos
+          loadedCount++;
+        }
+      } catch (error) {
+        // Sprite individual não carregou
+      }
+    }
+    
+    // Só usa sprites se todos carregaram
+    if (loadedCount === states.length) {
+      this.useFallback = false;
+      this.bg.visible = false;
+      console.log(`✓ Alternative sprites loaded for ${letter}`);
+    } else {
+      this.useFallback = true;
+      this.bg.visible = true;
+      // Limpa sprites parciais
+      this.sprites.forEach(sprite => sprite?.destroy());
+      this.sprites.clear();
+      console.warn(`Alternative sprites not found for ${letter}, using fallback (loaded ${loadedCount}/${states.length})`);
+    }
   }
 
   private draw(): void {
@@ -149,6 +196,22 @@ export class AlternativeButton extends Container {
 
   public setState(state: AlternativeState): void {
     this._state = state;
+    
+    // Atualiza sprite se disponível
+    if (!this.useFallback) {
+      // Esconde sprite anterior
+      if (this.currentSprite) {
+        this.currentSprite.visible = false;
+      }
+      
+      // Mostra sprite do novo estado
+      const sprite = this.sprites.get(state) || this.sprites.get('normal');
+      if (sprite) {
+        sprite.visible = true;
+        this.currentSprite = sprite;
+      }
+    }
+    
     this.draw();
 
     // Animações especiais

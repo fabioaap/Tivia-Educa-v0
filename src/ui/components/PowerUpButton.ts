@@ -1,125 +1,204 @@
-import { Container, Graphics, Text } from 'pixi.js';
-import { Button } from './Button';
-import { COLORS, TYPOGRAPHY } from '@config/constants';
+import { Container, Graphics, Sprite, Assets, Text } from 'pixi.js';
+import { COLORS, TYPOGRAPHY, LAYOUT } from '@config/constants';
 
-export interface PowerUpButtonConfig {
-  width: number;
-  height: number;
-  icon: string; // Unicode/emoji
-  label: string;
-  uses: number;
-  maxUses: number;
+export type PowerUpType = 'hint' | 'remove' | 'skip';
+
+interface PowerUpConfig {
+  type: PowerUpType;
+  x: number;
+  y: number;
 }
 
+const POWERUP_SPRITES = {
+  hint: '/assets/ui/powerups/pedir-dica.png',
+  remove: '/assets/ui/powerups/remover-alternativa.png',
+  skip: '/assets/ui/powerups/pular-questao.png',
+} as const;
+
+const POWERUP_FALLBACK = {
+  hint: { icon: '💡', label: 'PEDIR DICA' },
+  remove: { icon: '🗑️', label: 'REMOVER ALTERNATIVA' },
+  skip: { icon: '⏭️', label: 'PULAR QUESTÃO' },
+} as const;
+
 export class PowerUpButton extends Container {
-  private button: Button;
-  private iconText: Text;
-  private labelText: Text;
+  private config: PowerUpConfig;
+  private bg: Sprite | null = null;
+  private fallbackBg: Graphics;
   private badge: Container;
   private badgeText: Text;
-  private _uses: number;
-  private _maxUses: number;
+  private uses: number = 3;
+  private isEnabled: boolean = true;
+  private onClickCallback?: () => void;
 
-  public onClick?: () => void;
-
-  constructor(config: PowerUpButtonConfig) {
+  constructor(config: PowerUpConfig) {
     super();
+    this.config = config;
+    this.position.set(config.x, config.y);
+    this.eventMode = 'static';
+    this.cursor = 'pointer';
 
-    this._uses = config.uses;
-    this._maxUses = config.maxUses;
+    // Cria fallback Graphics imediatamente
+    this.fallbackBg = new Graphics();
+    this.addChild(this.fallbackBg);
 
-    // Botão base
-    this.button = new Button({
-      width: config.width,
-      height: config.height,
-      borderRadius: config.height / 2,
-      backgroundColor: COLORS.BG_DARKER,
-      borderColor: COLORS.PRIMARY_CYAN,
-      borderWidth: 2,
-    });
-    this.button.position.set(config.width / 2, config.height / 2);
-    this.button.onClick = () => this.handleClick();
-    this.addChild(this.button);
-
-    // Ícone
-    this.iconText = new Text({
-      text: config.icon,
-      style: {
-        fontSize: 32,
-        fill: COLORS.TEXT_WHITE,
-      },
-    });
-    this.iconText.anchor.set(0.5);
-    this.iconText.position.set(60, config.height / 2);
-    this.addChild(this.iconText);
-
-    // Label
-    this.labelText = new Text({
-      text: config.label,
-      style: {
-        fontFamily: TYPOGRAPHY.FONT_BODY,
-        fontSize: TYPOGRAPHY.SIZES.BUTTON,
-        fill: COLORS.TEXT_WHITE,
-        fontWeight: TYPOGRAPHY.WEIGHTS.BOLD,
-      },
-    });
-    this.labelText.anchor.set(0, 0.5);
-    this.labelText.position.set(100, config.height / 2);
-    this.addChild(this.labelText);
-
-    // Badge de usos
+    // Badge contador no canto superior direito
     this.badge = new Container();
-    const badgeBg = new Graphics();
-    badgeBg.circle(0, 0, 15);
-    badgeBg.fill(COLORS.ACCENT_ORANGE);
-    this.badge.addChild(badgeBg);
-
+    const btnWidth = config.type === 'hint' ? 400 : config.type === 'remove' ? 420 : 360;
+    this.badge.position.set(btnWidth - 30, 10);
     this.badgeText = new Text({
-      text: this._uses.toString(),
+      text: this.uses.toString(),
       style: {
-        fontFamily: TYPOGRAPHY.FONT_DISPLAY,
         fontSize: TYPOGRAPHY.SIZES.BADGE,
         fill: COLORS.TEXT_WHITE,
         fontWeight: TYPOGRAPHY.WEIGHTS.BOLD,
+        align: 'center',
       },
     });
     this.badgeText.anchor.set(0.5);
     this.badge.addChild(this.badgeText);
-
-    this.badge.position.set(30, 15);
     this.addChild(this.badge);
 
-    this.updateState();
+    this.loadSprite();
+    this.setupInteraction();
   }
 
-  private handleClick(): void {
-    if (this._uses > 0) {
-      this.onClick?.();
+  private async loadSprite(): Promise<void> {
+    const spritePath = POWERUP_SPRITES[this.config.type];
+    const btnConfig = this.config.type === 'hint' 
+      ? LAYOUT.FOOTER.HINT_BUTTON 
+      : this.config.type === 'remove' 
+      ? LAYOUT.FOOTER.REMOVE_BUTTON 
+      : LAYOUT.FOOTER.SKIP_BUTTON;
+    
+    try {
+      await Assets.load(spritePath);
+      this.bg = Sprite.from(spritePath);
+      this.bg.anchor.set(0);
+      this.bg.width = btnConfig.width;
+      this.bg.height = btnConfig.height;
+      this.addChildAt(this.bg, 0);
+      this.fallbackBg.visible = false;
+      console.log(`✅ PowerUpButton sprite loaded: ${spritePath}`);
+    } catch (error) {
+      console.warn(`⚠️ PowerUpButton sprite not found: ${spritePath}, using fallback Graphics`);
+      this.createFallbackGraphics();
+    }
+    this.updateBadgeVisuals();
+  }
+
+  private createFallbackGraphics(): void {
+    const btnConfig = this.config.type === 'hint' 
+      ? LAYOUT.FOOTER.HINT_BUTTON 
+      : this.config.type === 'remove' 
+      ? LAYOUT.FOOTER.REMOVE_BUTTON 
+      : LAYOUT.FOOTER.SKIP_BUTTON;
+    
+    const w = btnConfig.width;
+    const h = btnConfig.height;
+    const fallback = POWERUP_FALLBACK[this.config.type];
+
+    this.fallbackBg.clear();
+    this.fallbackBg
+      .roundRect(0, 0, w, h, 12)
+      .fill(COLORS.SECONDARY_CYAN);
+
+    const iconText = new Text({
+      text: fallback.icon,
+      style: { fontSize: 32, align: 'center' },
+    });
+    iconText.anchor.set(0.5);
+    iconText.position.set(w / 2, h / 2 - 15);
+    this.fallbackBg.addChild(iconText);
+
+    const labelText = new Text({
+      text: fallback.label,
+      style: {
+        fontSize: TYPOGRAPHY.SIZES.BUTTON,
+        fill: COLORS.TEXT_WHITE,
+        fontWeight: TYPOGRAPHY.WEIGHTS.BOLD,
+        align: 'center',
+      },
+    });
+    labelText.anchor.set(0.5);
+    labelText.position.set(w / 2, h / 2 + 20);
+    this.fallbackBg.addChild(labelText);
+  }
+
+  private setupInteraction(): void {
+    this.on('pointerdown', () => {
+      if (this.isEnabled && this.uses > 0) {
+        this.scale.set(0.95);
+      }
+    });
+
+    this.on('pointerup', () => {
+      this.scale.set(1);
+      if (this.isEnabled && this.uses > 0) {
+        // Apenas dispara o callback, não decrementa aqui
+        this.onClickCallback?.();
+      }
+    });
+
+    this.on('pointerupoutside', () => {
+      this.scale.set(1);
+    });
+
+    this.on('pointerover', () => {
+      if (this.isEnabled && this.uses > 0) {
+        this.alpha = 0.9;
+      }
+    });
+
+    this.on('pointerout', () => {
+      this.alpha = 1;
+      this.scale.set(1);
+    });
+  }
+
+  private updateBadgeVisuals(): void {
+    const bgCircle = new Graphics();
+    bgCircle
+      .circle(0, 0, 16)
+      .fill(this.uses > 0 ? COLORS.ACCENT_GREEN : COLORS.ACCENT_RED);
+    
+    if (this.badge.children.length > 1) {
+      this.badge.removeChildAt(0);
+    }
+    this.badge.addChildAt(bgCircle, 0);
+    this.badgeText.text = this.uses.toString();
+
+    if (this.uses === 0) {
+      this.alpha = 0.5;
+      this.cursor = 'not-allowed';
+      this.isEnabled = false;
+    } else {
+      this.alpha = 1;
+      this.cursor = 'pointer';
+      this.isEnabled = true;
     }
   }
 
   public use(): boolean {
-    if (this._uses > 0) {
-      this._uses--;
-      this.updateState();
+    if (this.uses > 0) {
+      this.uses--;
+      this.updateBadgeVisuals();
+      this.onClickCallback?.();
       return true;
     }
     return false;
   }
 
-  public setUses(uses: number): void {
-    this._uses = Math.max(0, Math.min(this._maxUses, uses));
-    this.updateState();
-  }
-
-  private updateState(): void {
-    this.badgeText.text = this._uses.toString();
-    const disabled = this._uses === 0;
-    this.button.setDisabled(disabled);
-    this.badge.alpha = disabled ? 0.5 : 1.0;
+  public setUses(value: number): void {
+    this.uses = Math.max(0, value);
+    this.updateBadgeVisuals();
   }
 
   public getUses(): number {
-    return this._uses;
+    return this.uses;
+  }
+
+  public onClick(callback: () => void): void {
+    this.onClickCallback = callback;
   }
 }

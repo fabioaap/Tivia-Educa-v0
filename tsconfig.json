@@ -25,6 +25,7 @@
       "@ui/*": ["src/ui/*"],
       "@data/*": ["src/data/*"],
       "@storage/*": ["src/storage/*"],
+      "@systems/*": ["src/systems/*"],
       "@telemetry/*": ["src/telemetry/*"],
       "@audio/*": ["src/audio/*"],
       "@utils/*": ["src/utils/*"],

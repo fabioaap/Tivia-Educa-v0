@@ -13,6 +13,7 @@ export default defineConfig({
       '@ui': path.resolve(__dirname, './src/ui'),
       '@data': path.resolve(__dirname, './src/data'),
       '@storage': path.resolve(__dirname, './src/storage'),
+      '@systems': path.resolve(__dirname, './src/systems'),
       '@telemetry': path.resolve(__dirname, './src/telemetry'),
       '@audio': path.resolve(__dirname, './src/audio'),
       '@utils': path.resolve(__dirname, './src/utils'),

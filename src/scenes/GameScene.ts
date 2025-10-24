@@ -2,13 +2,17 @@ import { Application, Container, Graphics, Text, Sprite } from 'pixi.js';
 // import { Background } from '../ui/components/Background';
 import { BaseScene } from '@core/BaseScene';
 import { COLORS, DESIGN, LAYOUT, TYPOGRAPHY } from '@config/constants';
-import { RoundedButton } from '@ui/components/RoundedButton';
-import { HeaderBar } from '@ui/components/HeaderBar';
-import { ProgressBar } from '@ui/components/ProgressBar';
-import { Timer } from '@ui/components/Timer';
-import { PowerUpButton } from '@ui/components/PowerUpButton';
-import { AlternativeButton } from '@ui/components/AlternativeButton';
+import { 
+  RoundedButton, 
+  ProgressBar, 
+  Timer, 
+  PowerUpButton, 
+  AlternativeButton, 
+  StreakIndicator 
+} from '@ui/components';
 import { Question } from '@data/models/Question';
+import { StreakSystem } from '@systems/StreakSystem';
+import { PixelPerfectDebugger } from '../debug/PixelPerfectDebugger';
 
 export class GameScene extends BaseScene {
   // Header components
@@ -21,7 +25,6 @@ export class GameScene extends BaseScene {
 
   // Question components
   private questionContainer!: Container;
-  private questionBg!: Graphics;
   private questionText!: Text;
   private enunciadoCard?: Container;
   private alternativesContainer!: Container;
@@ -33,6 +36,13 @@ export class GameScene extends BaseScene {
   private removeButton!: PowerUpButton;
   private skipButton!: PowerUpButton;
 
+  // Streak system
+  private streakIndicator!: StreakIndicator;
+  private streakSystem: StreakSystem;
+
+  // Debug system
+  private debugger!: PixelPerfectDebugger;
+
   // State
   private currentQuestion: Question | null = null;
   private currentQuestionIndex = 0;
@@ -41,12 +51,54 @@ export class GameScene extends BaseScene {
 
   constructor(app: Application) {
     super(app);
+    this.streakSystem = new StreakSystem();
+    this.setupDebugControls();
+  }
+
+  private setupDebugControls(): void {
+    // Toggle debug com tecla 'D'
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'd' || e.key === 'D') {
+        this.debugger?.toggle();
+      }
+      // Ajusta alpha do overlay com '+' e '-'
+      if (e.key === '+' || e.key === '=') {
+        const current = this.debugger?.['referenceOverlay']?.alpha || 0.3;
+        this.debugger?.setReferenceAlpha(Math.min(1, current + 0.1));
+      }
+      if (e.key === '-' || e.key === '_') {
+        const current = this.debugger?.['referenceOverlay']?.alpha || 0.3;
+        this.debugger?.setReferenceAlpha(Math.max(0, current - 0.1));
+      }
+    });
   }
 
   protected async load(): Promise<void> {
     // Carregar o PNG do Figma primeiro
     const { Assets } = await import('pixi.js');
-    await Assets.load('/assets/tela-1.png');
+    
+    // Lista de assets para carregar (com fallback silencioso)
+    const assetsToLoad = [
+      '/assets/backgrounds/tela-1-static.png',
+      '/assets/ui/timer/timer-bg.png',
+      '/assets/ui/streak/fire.png',
+      '/assets/ui/alternatives/alternative-a-normal.png',
+      '/assets/ui/alternatives/alternative-a-hovered.png',
+      '/assets/ui/alternatives/alternative-a-correct.png',
+      '/assets/ui/alternatives/alternative-a-wrong.png',
+      '/assets/ui/powerups/pedir-dica.png',
+      '/assets/ui/powerups/remover-alternativa.png',
+      '/assets/ui/powerups/pular-questao.png',
+    ];
+
+    // Carrega assets que existem, ignora os que não existem
+    for (const asset of assetsToLoad) {
+      try {
+        await Assets.load(asset);
+      } catch (error) {
+        // Silenciosamente ignora assets que não existem (usará fallback)
+      }
+    }
     
     // Carregar questões mock
     const response = await fetch('/assets/data/mockQuestions.json');
@@ -57,7 +109,9 @@ export class GameScene extends BaseScene {
 
   protected create(): void {
     this.createBackground();
+    this.createDebugger();
     this.createHeader();
+    this.createStreakIndicator();
     this.createQuestionArea();
     this.createFooter();
     
@@ -65,11 +119,84 @@ export class GameScene extends BaseScene {
     if (this.currentQuestion) {
       this.displayQuestion(this.currentQuestion);
     }
+    
+    // Valida componentes após criação
+    this.validateComponents();
+  }
+
+  private createDebugger(): void {
+    this.debugger = new PixelPerfectDebugger();
+    // Carrega a imagem de referência (coloque o PNG completo do Figma aqui)
+    this.debugger.loadReferenceImage('/assets/backgrounds/tela-1-reference.png');
+    this.addChild(this.debugger);
+    
+    console.log('🔍 Debug Mode: Press [D] to toggle | [+/-] to adjust overlay alpha');
+  }
+
+  private validateComponents(): void {
+    // Valida Timer
+    if (this.timerCircle) {
+      this.debugger.checkComponent(
+        'timer',
+        this.timerCircle.x,
+        this.timerCircle.y,
+        LAYOUT.HEADER.TIMER.size,
+        LAYOUT.HEADER.TIMER.size
+      );
+    }
+    
+    // Valida Power-ups
+    if (this.hintButton) {
+      this.debugger.checkComponent(
+        'hint-button',
+        this.hintButton.x,
+        this.footerContainer.y + this.hintButton.y,
+        LAYOUT.FOOTER.HINT_BUTTON.width,
+        LAYOUT.FOOTER.HINT_BUTTON.height
+      );
+    }
+    
+    if (this.removeButton) {
+      this.debugger.checkComponent(
+        'remove-button',
+        this.removeButton.x,
+        this.footerContainer.y + this.removeButton.y,
+        LAYOUT.FOOTER.REMOVE_BUTTON.width,
+        LAYOUT.FOOTER.REMOVE_BUTTON.height
+      );
+    }
+    
+    if (this.skipButton) {
+      this.debugger.checkComponent(
+        'skip-button',
+        this.skipButton.x,
+        this.footerContainer.y + this.skipButton.y,
+        LAYOUT.FOOTER.SKIP_BUTTON.width,
+        LAYOUT.FOOTER.SKIP_BUTTON.height
+      );
+    }
+    
+    // Valida Alternatives
+    this.alternatives.forEach((alt, index) => {
+      const letter = String.fromCharCode(97 + index); // a, b, c, d
+      const row = Math.floor(index / 2);
+      const col = index % 2;
+      const expectedX = LAYOUT.QUESTION.ALTERNATIVES_GRID.x + col * (LAYOUT.QUESTION.ALTERNATIVE.width + LAYOUT.QUESTION.ALTERNATIVE.gapX);
+      const expectedY = LAYOUT.QUESTION.ALTERNATIVES_GRID.y + row * (LAYOUT.QUESTION.ALTERNATIVE.height + LAYOUT.QUESTION.ALTERNATIVE.gapY);
+      
+      this.debugger.checkComponent(
+        `alternative-${letter}`,
+        alt.x,
+        alt.y,
+        LAYOUT.QUESTION.ALTERNATIVE.width,
+        LAYOUT.QUESTION.ALTERNATIVE.height
+      );
+    });
   }
 
   private createBackground(): void {
     // Renderiza o PNG exportado do Figma como fundo pixel-perfect
-    const bg = Sprite.from('/assets/tela-1.png');
+    const bg = Sprite.from('/assets/backgrounds/tela-1-static.png');
     bg.width = DESIGN.WIDTH;
     bg.height = DESIGN.HEIGHT;
     this.addChild(bg);
@@ -151,6 +278,16 @@ export class GameScene extends BaseScene {
     this.headerContainer.addChild(this.timerCircle);
   }
 
+  private createStreakIndicator(): void {
+    // Indicador de streak no centro da tela (entre header e questões)
+    this.streakIndicator = new StreakIndicator();
+    this.streakIndicator.position.set(
+      DESIGN.WIDTH / 2,
+      DESIGN.HEIGHT / 2 - 150 // Ajustar conforme necessário
+    );
+    this.addChild(this.streakIndicator);
+  }
+
   private createQuestionArea(): void {
     this.questionContainer = new Container();
     this.questionContainer.alpha = 0; // Oculta - PNG já tem os visuais
@@ -191,49 +328,34 @@ export class GameScene extends BaseScene {
 
   private createFooter(): void {
     this.footerContainer = new Container();
-    this.footerContainer.alpha = 0; // Oculta - PNG já tem os visuais
     this.footerContainer.position.set(0, LAYOUT.FOOTER.Y);
     this.addChild(this.footerContainer);
 
-    // O PNG já tem o footer - removemos o background duplicado
-
-    // Hint button
+    // Hint button (PEDIR DICA)
     this.hintButton = new PowerUpButton({
-      width: LAYOUT.FOOTER.HINT_BUTTON.width,
-      height: LAYOUT.FOOTER.HINT_BUTTON.height,
-      icon: '💡',
-      label: 'PEDIR DICA',
-      uses: 3,
-      maxUses: 3,
+      type: 'hint',
+      x: LAYOUT.FOOTER.HINT_BUTTON.x,
+      y: 20,
     });
-    this.hintButton.position.set(LAYOUT.FOOTER.HINT_BUTTON.x, 20);
-    this.hintButton.onClick = () => this.useHint();
+    this.hintButton.onClick(() => this.useHint());
     this.footerContainer.addChild(this.hintButton);
 
-    // Remove alternative button
+    // Remove alternative button (REMOVER ALTERNATIVA)
     this.removeButton = new PowerUpButton({
-      width: LAYOUT.FOOTER.REMOVE_BUTTON.width,
-      height: LAYOUT.FOOTER.REMOVE_BUTTON.height,
-      icon: '🗑️',
-      label: 'REMOVER ALTERNATIVA',
-      uses: 3,
-      maxUses: 3,
+      type: 'remove',
+      x: LAYOUT.FOOTER.REMOVE_BUTTON.x,
+      y: 20,
     });
-    this.removeButton.position.set(LAYOUT.FOOTER.REMOVE_BUTTON.x, 20);
-    this.removeButton.onClick = () => this.useRemoveAlternative();
+    this.removeButton.onClick(() => this.useRemoveAlternative());
     this.footerContainer.addChild(this.removeButton);
 
-    // Skip button
+    // Skip button (PULAR QUESTÃO)
     this.skipButton = new PowerUpButton({
-      width: LAYOUT.FOOTER.SKIP_BUTTON.width,
-      height: LAYOUT.FOOTER.SKIP_BUTTON.height,
-      icon: '⏭️',
-      label: 'PULAR QUESTÃO',
-      uses: 3,
-      maxUses: 3,
+      type: 'skip',
+      x: LAYOUT.FOOTER.SKIP_BUTTON.x,
+      y: 20,
     });
-    this.skipButton.position.set(LAYOUT.FOOTER.SKIP_BUTTON.x, 20);
-    this.skipButton.onClick = () => this.skipQuestion();
+    this.skipButton.onClick(() => this.skipQuestion());
     this.footerContainer.addChild(this.skipButton);
   }
 
@@ -355,7 +477,28 @@ export class GameScene extends BaseScene {
       }
     });
 
-    console.log(isCorrect ? '✅ Correto!' : '❌ Errado!');
+    // Gerencia sistema de streak
+    if (isCorrect) {
+      const newStreak = this.streakSystem.increment();
+      
+      if (newStreak === 1) {
+        // Primeira acertada: mostra indicador
+        this.streakIndicator.show(this.streakSystem.getLevel());
+      } else if (newStreak <= 5) {
+        // Incrementa animação
+        this.streakIndicator.increment(this.streakSystem.getLevel());
+      }
+      
+      const multiplier = this.streakSystem.getMultiplier();
+      console.log(`✅ Correto! Streak: ${newStreak}x (multiplicador: ${multiplier}x)`);
+    } else {
+      // Reseta streak ao errar
+      if (this.streakSystem.getCurrent() > 0) {
+        this.streakIndicator.hide();
+        this.streakSystem.reset();
+      }
+      console.log('❌ Errado! Streak resetado.');
+    }
 
     // Simula próxima questão após 2 segundos
     setTimeout(() => this.nextQuestion(), 2000);
@@ -399,6 +542,13 @@ export class GameScene extends BaseScene {
   private skipQuestion(): void {
     if (this.skipButton.use()) {
       console.log('⏭️ Questão pulada!');
+      
+      // Pular também reseta streak
+      if (this.streakSystem.getCurrent() > 0) {
+        this.streakIndicator.hide();
+        this.streakSystem.reset();
+      }
+      
       this.nextQuestion();
     }
   }
