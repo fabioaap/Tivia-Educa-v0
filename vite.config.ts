@@ -16,6 +16,7 @@ export default defineConfig({
       '@systems': path.resolve(__dirname, './src/systems'),
       '@telemetry': path.resolve(__dirname, './src/telemetry'),
       '@audio': path.resolve(__dirname, './src/audio'),
+      '@debug': path.resolve(__dirname, './src/debug'),
       '@utils': path.resolve(__dirname, './src/utils'),
       '@config': path.resolve(__dirname, './src/config'),
     },

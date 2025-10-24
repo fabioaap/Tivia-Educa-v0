@@ -12,7 +12,7 @@ import {
 } from '@ui/components';
 import { Question } from '@data/models/Question';
 import { StreakSystem } from '@systems/StreakSystem';
-import { PixelPerfectDebugger } from '../debug/PixelPerfectDebugger';
+import { PixelPerfectDebugger } from '@debug/PixelPerfectDebugger';
 
 export class GameScene extends BaseScene {
   // Header components
@@ -60,6 +60,22 @@ export class GameScene extends BaseScene {
     window.addEventListener('keydown', (e) => {
       if (e.key === 'd' || e.key === 'D') {
         this.debugger?.toggle();
+      }
+      // Toggle edit mode com tecla 'E'
+      if (e.key === 'e' || e.key === 'E') {
+        this.debugger?.toggleEditMode();
+      }
+      // Salva mudanças no console com tecla 'S'
+      if (e.key === 's' || e.key === 'S') {
+        this.debugger?.saveChanges();
+      }
+      // Copia layout para clipboard com tecla 'C'
+      if (e.key === 'c' || e.key === 'C') {
+        this.debugger?.copyToClipboard();
+      }
+      // Descarta mudanças com ESC
+      if (e.key === 'Escape') {
+        this.debugger?.discardChanges();
       }
       // Ajusta alpha do overlay com '+' e '-'
       if (e.key === '+' || e.key === '=') {
@@ -176,21 +192,52 @@ export class GameScene extends BaseScene {
       );
     }
     
-    // Valida Alternatives
+    // Valida Alternatives (considera posição do container)
     this.alternatives.forEach((alt, index) => {
       const letter = String.fromCharCode(97 + index); // a, b, c, d
-      const row = Math.floor(index / 2);
-      const col = index % 2;
-      const expectedX = LAYOUT.QUESTION.ALTERNATIVES_GRID.x + col * (LAYOUT.QUESTION.ALTERNATIVE.width + LAYOUT.QUESTION.ALTERNATIVE.gapX);
-      const expectedY = LAYOUT.QUESTION.ALTERNATIVES_GRID.y + row * (LAYOUT.QUESTION.ALTERNATIVE.height + LAYOUT.QUESTION.ALTERNATIVE.gapY);
       
       this.debugger.checkComponent(
         `alternative-${letter}`,
-        alt.x,
-        alt.y,
+        this.alternativesContainer.x + alt.x,
+        this.alternativesContainer.y + alt.y,
         LAYOUT.QUESTION.ALTERNATIVE.width,
         LAYOUT.QUESTION.ALTERNATIVE.height
       );
+    });
+    
+    // Registra componentes para edição interativa
+    this.registerComponentsForEditing();
+  }
+
+  private registerComponentsForEditing(): void {
+    // Timer
+    if (this.timerCircle) {
+      this.debugger.registerComponent('timer', this.timerCircle);
+    }
+    
+    // Power-ups (ajusta posição para absoluta)
+    if (this.hintButton) {
+      const absoluteContainer = new Container();
+      absoluteContainer.position.set(
+        this.hintButton.x,
+        this.footerContainer.y + this.hintButton.y
+      );
+      absoluteContainer.addChild(this.hintButton);
+      this.debugger.registerComponent('hint-button', this.hintButton);
+    }
+    
+    if (this.removeButton) {
+      this.debugger.registerComponent('remove-button', this.removeButton);
+    }
+    
+    if (this.skipButton) {
+      this.debugger.registerComponent('skip-button', this.skipButton);
+    }
+    
+    // Alternatives
+    this.alternatives.forEach((alt, index) => {
+      const letter = String.fromCharCode(97 + index);
+      this.debugger.registerComponent(`alternative-${letter}`, alt);
     });
   }
 
@@ -320,10 +367,13 @@ export class GameScene extends BaseScene {
     this.questionText.alpha = 0; // Oculta pois o PNG já mostra o texto
     this.questionContainer.addChild(this.questionText);
 
-    // Alternatives container
+    // Alternatives container (posiciona no grid correto)
     this.alternativesContainer = new Container();
-    this.alternativesContainer.position.set(50, 360);
-    this.questionContainer.addChild(this.alternativesContainer);
+    this.alternativesContainer.position.set(
+      LAYOUT.QUESTION.ALTERNATIVES_GRID.x,
+      LAYOUT.QUESTION.ALTERNATIVES_GRID.y
+    );
+    this.addChild(this.alternativesContainer); // Adiciona direto à cena, não ao questionContainer
   }
 
   private createFooter(): void {

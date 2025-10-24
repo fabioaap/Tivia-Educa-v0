@@ -28,6 +28,7 @@
       "@systems/*": ["src/systems/*"],
       "@telemetry/*": ["src/telemetry/*"],
       "@audio/*": ["src/audio/*"],
+      "@debug/*": ["src/debug/*"],
       "@utils/*": ["src/utils/*"],
       "@config/*": ["src/config/*"]
     },
