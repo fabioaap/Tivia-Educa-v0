@@ -5,6 +5,7 @@ export { Timer } from './Timer';
 export { PowerUpButton } from './PowerUpButton';
 export { AlternativeButton } from './AlternativeButton';
 export { StreakIndicator } from './StreakIndicator';
+export { DebugControlPanel } from './DebugControlPanel';
 
 export type { ButtonConfig } from './Button';
 export type { RoundedButtonConfig } from './RoundedButton';

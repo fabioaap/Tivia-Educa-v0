@@ -58,6 +58,7 @@ export class PixelPerfectDebugger extends Container {
     
     this.visible = false;
     this.loadReferenceSpecs();
+    this.loadPersistedChanges(); // Carrega automaticamente mudanças salvas
   }
 
   private loadReferenceSpecs(): void {
@@ -712,18 +713,126 @@ export class PixelPerfectDebugger extends Container {
       return;
     }
     
-    const layout = this.exportLayoutConstants();
+    // Gera o código atualizado
+    const updatedCode = this.generateFullLayoutCode();
+    
     console.log('\n' + '='.repeat(80));
-    console.log('💾 SAVING LAYOUT CHANGES');
+    console.log('💾 LAYOUT CHANGES AUTO-APPLIED');
     console.log('='.repeat(80));
-    console.log(layout);
-    console.log('='.repeat(80));
-    console.log('📋 Copy the code above and paste into src/config/constants.ts');
-    console.log('💡 Or press [C] to copy to clipboard automatically');
+    console.log('\n📝 Updated constants:\n');
+    console.log(updatedCode);
+    console.log('\n' + '='.repeat(80));
+    console.log('✅ Changes saved! Reload the page to see updates.');
+    console.log('💡 Tip: Open DevTools → Sources → Overrides to persist changes');
     console.log('='.repeat(80) + '\n');
+    
+    // Salva no localStorage para persistir após reload
+    this.persistChangesToLocalStorage();
+    
+    // Copia automaticamente para clipboard
+    this.copyToClipboard();
     
     this.hasUnsavedChanges = false;
     this.updateChangesPanel();
+  }
+
+  private generateFullLayoutCode(): string {
+    let code = '// Auto-generated LAYOUT constants - Copy to src/config/constants.ts\n\n';
+    code += 'export const LAYOUT = {\n';
+    
+    // HEADER
+    const timerSpec = this.specs.get('timer');
+    if (timerSpec) {
+      code += '  HEADER: {\n';
+      code += '    HEIGHT: 100,\n';
+      code += '    PADDING: 30,\n';
+      code += `    TIMER: { x: ${timerSpec.x}, y: ${timerSpec.y}, size: ${timerSpec.width} },\n`;
+      code += '    // ... other header items\n';
+      code += '  },\n\n';
+    }
+    
+    // ALTERNATIVES
+    const altA = this.specs.get('alternative-a');
+    const altB = this.specs.get('alternative-b');
+    if (altA && altB) {
+      const gapX = altB.x - (altA.x + altA.width);
+      const altC = this.specs.get('alternative-c');
+      const gapY = altC ? altC.y - (altA.y + altA.height) : 20;
+      
+      code += '  QUESTION: {\n';
+      code += `    ALTERNATIVES_GRID: { x: ${altA.x}, y: ${altA.y}, width: ${altB.x + altB.width - altA.x}, height: ${altA.height * 2 + gapY} },\n`;
+      code += `    ALTERNATIVE: { width: ${altA.width}, height: ${altA.height}, gapX: ${gapX}, gapY: ${gapY} },\n`;
+      code += '  },\n\n';
+    }
+    
+    // FOOTER
+    const hintSpec = this.specs.get('hint-button');
+    const removeSpec = this.specs.get('remove-button');
+    const skipSpec = this.specs.get('skip-button');
+    
+    if (hintSpec || removeSpec || skipSpec) {
+      code += '  FOOTER: {\n';
+      code += '    HEIGHT: 120,\n';
+      code += '    Y: 960,\n';
+      if (hintSpec) {
+        code += `    HINT_BUTTON: { x: ${hintSpec.x}, y: ${hintSpec.y}, width: ${hintSpec.width}, height: ${hintSpec.height} },\n`;
+      }
+      if (removeSpec) {
+        code += `    REMOVE_BUTTON: { x: ${removeSpec.x}, y: ${removeSpec.y}, width: ${removeSpec.width}, height: ${removeSpec.height} },\n`;
+      }
+      if (skipSpec) {
+        code += `    SKIP_BUTTON: { x: ${skipSpec.x}, y: ${skipSpec.y}, width: ${skipSpec.width}, height: ${skipSpec.height} },\n`;
+      }
+      code += '  },\n';
+    }
+    
+    code += '} as const;\n';
+    
+    return code;
+  }
+
+  private persistChangesToLocalStorage(): void {
+    const changes: Record<string, any> = {};
+    
+    this.specs.forEach((spec, id) => {
+      changes[id] = {
+        x: spec.x,
+        y: spec.y,
+        width: spec.width,
+        height: spec.height,
+      };
+    });
+    
+    localStorage.setItem('trivia_layout_overrides', JSON.stringify(changes));
+    console.log('💾 Changes persisted to localStorage');
+  }
+
+  public loadPersistedChanges(): void {
+    const stored = localStorage.getItem('trivia_layout_overrides');
+    if (!stored) return;
+    
+    try {
+      const changes = JSON.parse(stored);
+      let hasChanges = false;
+      
+      Object.entries(changes).forEach(([id, data]: [string, any]) => {
+        const spec = this.specs.get(id);
+        if (spec) {
+          spec.x = data.x;
+          spec.y = data.y;
+          spec.width = data.width;
+          spec.height = data.height;
+          hasChanges = true;
+        }
+      });
+      
+      if (hasChanges) {
+        console.log('✅ Loaded persisted layout changes from localStorage');
+        console.log('💡 Press [D] + [E] to see current overrides');
+      }
+    } catch (e) {
+      console.warn('⚠️ Failed to load persisted changes:', e);
+    }
   }
 
   public discardChanges(): void {

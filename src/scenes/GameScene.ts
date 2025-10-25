@@ -10,6 +10,7 @@ import {
   AlternativeButton, 
   StreakIndicator 
 } from '@ui/components';
+import { DebugControlPanel } from '@ui/components/DebugControlPanel';
 import { Question } from '@data/models/Question';
 import { StreakSystem } from '@systems/StreakSystem';
 import { PixelPerfectDebugger } from '@debug/PixelPerfectDebugger';
@@ -42,6 +43,7 @@ export class GameScene extends BaseScene {
 
   // Debug system
   private debugger!: PixelPerfectDebugger;
+  private debugControlPanel!: DebugControlPanel;
 
   // State
   private currentQuestion: Question | null = null;
@@ -76,6 +78,11 @@ export class GameScene extends BaseScene {
       // Descarta mudanças com ESC
       if (e.key === 'Escape') {
         this.debugger?.discardChanges();
+      }
+      // Limpa cache persistido com 'R'
+      if (e.key === 'r' || e.key === 'R') {
+        localStorage.removeItem('trivia_layout_overrides');
+        console.log('🗑️ Layout cache cleared. Reload to reset.');
       }
       // Ajusta alpha do overlay com '+' e '-'
       if (e.key === '+' || e.key === '=') {
@@ -146,7 +153,51 @@ export class GameScene extends BaseScene {
     this.debugger.loadReferenceImage('/assets/backgrounds/tela-1-reference.png');
     this.addChild(this.debugger);
     
+    // Cria painel de controles visuais
+    this.debugControlPanel = new DebugControlPanel();
+    this.addChild(this.debugControlPanel);
+    
+    // Conecta callbacks
+    this.debugControlPanel.onDebugToggle(() => {
+      this.debugger.toggle();
+      this.debugControlPanel.setDebugActive(this.debugger['isVisible']);
+    });
+    
+    this.debugControlPanel.onEditToggle(() => {
+      this.debugger.toggleEditMode();
+      this.debugControlPanel.setEditActive(this.debugger['editMode']);
+    });
+    
+    this.debugControlPanel.onSave(() => {
+      this.debugger.saveChanges();
+    });
+    
+    this.debugControlPanel.onReset(() => {
+      localStorage.removeItem('trivia_layout_overrides');
+      console.log('🗑️ Layout cache cleared. Reload to reset.');
+      window.location.reload();
+    });
+    
+    this.debugControlPanel.onAlphaDecrease(() => {
+      const current = this.debugger['referenceOverlay']?.alpha || 0.3;
+      this.debugger.setReferenceAlpha(Math.max(0, current - 0.1));
+    });
+    
+    this.debugControlPanel.onAlphaIncrease(() => {
+      const current = this.debugger['referenceOverlay']?.alpha || 0.3;
+      this.debugger.setReferenceAlpha(Math.min(1, current + 0.1));
+    });
+    
+    this.debugControlPanel.onDiscard(() => {
+      this.debugger.discardChanges();
+    });
+    
+    this.debugControlPanel.onCopy(() => {
+      this.debugger.copyToClipboard();
+    });
+    
     console.log('🔍 Debug Mode: Press [D] to toggle | [+/-] to adjust overlay alpha');
+    console.log('🎮 Debug Controls: Visual panel available at footer');
   }
 
   private validateComponents(): void {
