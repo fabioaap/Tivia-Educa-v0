@@ -13,46 +13,93 @@ interface ControlButton {
 export class DebugControlPanel extends Container {
   private buttons: Map<string, ControlButton> = new Map();
   private panelBg: Graphics;
+  private isDragging: boolean = false;
+  private dragOffset: { x: number; y: number } = { x: 0, y: 0 };
+  private collapseButton: Graphics;
+  private collapseText: Text;
+  private isCollapsed: boolean = false;
+  private buttonsContainer: Container;
   
   constructor() {
     super();
     
-    // Background semi-transparente
+    // Background semi-transparente com bordas arredondadas
     this.panelBg = new Graphics();
-    this.panelBg.rect(0, 0, DESIGN.CANVAS_WIDTH, 80);
-    this.panelBg.fill({ color: 0x000000, alpha: 0.85 });
+    this.panelBg.roundRect(0, 0, 1360, 80, 8);
+    this.panelBg.fill({ color: 0x000000, alpha: 0.9 });
+    this.panelBg.stroke({ color: 0x00ff00, width: 2 });
     this.addChild(this.panelBg);
+    
+    // Barra de título arrastável
+    const titleBar = new Graphics();
+    titleBar.roundRect(0, 0, 1360, 30, 8);
+    titleBar.fill({ color: 0x001a00, alpha: 0.95 });
+    titleBar.eventMode = 'static';
+    titleBar.cursor = 'move';
+    this.addChild(titleBar);
     
     // Título do painel
     const title = new Text({
-      text: 'DEBUG CONTROLS',
+      text: '🎮 DEBUG CONTROLS (Drag to Move)',
       style: {
-        fontSize: 16,
+        fontSize: 14,
         fill: 0x00ff00,
         fontFamily: 'Arial',
         fontWeight: 'bold',
       },
     });
-    title.x = 20;
-    title.y = 10;
+    title.x = 10;
+    title.y = 7;
     this.addChild(title);
     
-    // Posicionar no footer
-    this.y = DESIGN.CANVAS_HEIGHT - 80;
+    // Botão de colapsar/expandir
+    this.collapseButton = new Graphics();
+    this.collapseButton.circle(0, 0, 10);
+    this.collapseButton.fill({ color: 0xffaa00 });
+    this.collapseButton.x = 1340;
+    this.collapseButton.y = 15;
+    this.collapseButton.eventMode = 'static';
+    this.collapseButton.cursor = 'pointer';
+    this.addChild(this.collapseButton);
+    
+    this.collapseText = new Text({
+      text: '−',
+      style: {
+        fontSize: 16,
+        fill: 0x000000,
+        fontFamily: 'Arial',
+        fontWeight: 'bold',
+      },
+    });
+    this.collapseText.anchor.set(0.5);
+    this.collapseText.x = 1340;
+    this.collapseText.y = 15;
+    this.addChild(this.collapseText);
+    
+    // Container para os botões
+    this.buttonsContainer = new Container();
+    this.buttonsContainer.y = 35;
+    this.addChild(this.buttonsContainer);
+    
+    // Posicionar no topo direito (não atrapalha footer)
+    this.x = DESIGN.WIDTH - 1380;
+    this.y = 10;
     
     this.createButtons();
+    this.setupDragHandlers(titleBar);
+    this.setupCollapseHandler();
   }
   
   private createButtons(): void {
     const buttonConfigs = [
-      { id: 'debug', label: 'Debug [D]', x: 20, color: 0x00ff00 },
-      { id: 'edit', label: 'Edit [E]', x: 180, color: 0xffaa00 },
-      { id: 'save', label: 'Save [S]', x: 340, color: 0x00aaff },
-      { id: 'reset', label: 'Reset [R]', x: 500, color: 0xff0000 },
-      { id: 'alpha-', label: 'Alpha -', x: 660, color: 0x888888 },
-      { id: 'alpha+', label: 'Alpha +', x: 820, color: 0x888888 },
-      { id: 'discard', label: 'Discard [ESC]', x: 980, color: 0xff6600 },
-      { id: 'copy', label: 'Copy [C]', x: 1160, color: 0x9900ff },
+      { id: 'debug', label: 'Debug [D]', x: 10, color: 0x00ff00 },
+      { id: 'edit', label: 'Edit [E]', x: 160, color: 0xffaa00 },
+      { id: 'save', label: 'Save [S]', x: 310, color: 0x00aaff },
+      { id: 'reset', label: 'Reset [R]', x: 460, color: 0xff0000 },
+      { id: 'alpha-', label: 'Alpha -', x: 610, color: 0x888888 },
+      { id: 'alpha+', label: 'Alpha +', x: 760, color: 0x888888 },
+      { id: 'discard', label: 'Discard [ESC]', x: 910, color: 0xff6600 },
+      { id: 'copy', label: 'Copy [C]', x: 1080, color: 0x9900ff },
     ];
     
     buttonConfigs.forEach(config => {
@@ -60,7 +107,7 @@ export class DebugControlPanel extends Container {
         config.id,
         config.label,
         config.x,
-        40,
+        5,
         config.color
       );
       this.buttons.set(config.id, btn);
@@ -82,12 +129,12 @@ export class DebugControlPanel extends Container {
     bg.y = y;
     bg.eventMode = 'static';
     bg.cursor = 'pointer';
-    this.addChild(bg);
+    this.buttonsContainer.addChild(bg);
     
     const text = new Text({
       text: label,
       style: {
-        fontSize: 13,
+        fontSize: 12,
         fill: 0xffffff,
         fontFamily: 'Arial',
         fontWeight: 'bold',
@@ -96,7 +143,7 @@ export class DebugControlPanel extends Container {
     text.anchor.set(0.5);
     text.x = x + 70;
     text.y = y + 15;
-    this.addChild(text);
+    this.buttonsContainer.addChild(text);
     
     const button: ControlButton = {
       id,
@@ -218,5 +265,57 @@ export class DebugControlPanel extends Container {
   
   public hide(): void {
     this.visible = false;
+  }
+  
+  private setupDragHandlers(titleBar: Graphics): void {
+    titleBar.on('pointerdown', (e) => {
+      this.isDragging = true;
+      this.dragOffset.x = e.global.x - this.x;
+      this.dragOffset.y = e.global.y - this.y;
+      this.alpha = 0.8;
+      e.stopPropagation();
+    });
+  }
+  
+  public update(mouseX: number, mouseY: number): void {
+    if (this.isDragging) {
+      this.x = mouseX - this.dragOffset.x;
+      this.y = mouseY - this.dragOffset.y;
+      
+      // Limitar aos bounds da tela
+      this.x = Math.max(0, Math.min(DESIGN.WIDTH - 1360, this.x));
+      this.y = Math.max(0, Math.min(DESIGN.HEIGHT - 80, this.y));
+    }
+  }
+  
+  public stopDragging(): void {
+    if (this.isDragging) {
+      this.isDragging = false;
+      this.alpha = 1;
+    }
+  }
+  
+  private setupCollapseHandler(): void {
+    this.collapseButton.on('pointerdown', () => {
+      this.isCollapsed = !this.isCollapsed;
+      
+      if (this.isCollapsed) {
+        // Colapsar: esconder botões
+        this.buttonsContainer.visible = false;
+        this.panelBg.clear();
+        this.panelBg.roundRect(0, 0, 1360, 30, 8);
+        this.panelBg.fill({ color: 0x000000, alpha: 0.9 });
+        this.panelBg.stroke({ color: 0x00ff00, width: 2 });
+        this.collapseText.text = '+';
+      } else {
+        // Expandir: mostrar botões
+        this.buttonsContainer.visible = true;
+        this.panelBg.clear();
+        this.panelBg.roundRect(0, 0, 1360, 80, 8);
+        this.panelBg.fill({ color: 0x000000, alpha: 0.9 });
+        this.panelBg.stroke({ color: 0x00ff00, width: 2 });
+        this.collapseText.text = '−';
+      }
+    });
   }
 }

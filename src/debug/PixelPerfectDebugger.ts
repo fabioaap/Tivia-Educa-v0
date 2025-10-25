@@ -829,6 +829,9 @@ export class PixelPerfectDebugger extends Container {
       if (hasChanges) {
         console.log('✅ Loaded persisted layout changes from localStorage');
         console.log('💡 Press [D] + [E] to see current overrides');
+        console.warn('⚠️ WARNING: localStorage overrides are active!');
+        console.warn('   These values are DIFFERENT from constants.ts');
+        console.warn('   Press [R] to reset and use constants.ts values');
       }
     } catch (e) {
       console.warn('⚠️ Failed to load persisted changes:', e);

@@ -4,7 +4,32 @@
 
 ✅ **Estrutura de pastas criada**  
 ✅ **Componentes refatorados para usar sprites**  
+✅ **Alternative A exportada e funcionando**
+✅ **Timer bg exportado e funcionando**
+✅ **Power-ups exportados e funcionando**
+❌ **Alternatives B/C/D FALTANDO**
 🔄 **Aguardando exports do Figma**  
+
+## ⚠️ ASSETS NECESSÁRIOS
+
+### Alternativas GENÉRICAS (4 sprites apenas!)
+
+**Pasta**: `/public/assets/ui/alternatives/`
+
+Como as alternativas são **dinâmicas**, precisamos de apenas **1 conjunto genérico**:
+
+- `alternative-normal.png` (490x110px) - Estado padrão
+- `alternative-hovered.png` (490x110px) - Hover/focus
+- `alternative-correct.png` (490x110px) - Resposta correta
+- `alternative-wrong.png` (490x110px) - Resposta errada
+
+**IMPORTANTE**: 
+- ✅ Todos os botões (A/B/C/D/E...) usam os **mesmos sprites**
+- ✅ A letra e texto são **dinâmicos** (renderizados por cima)
+- ✅ Funciona com **qualquer número de alternativas**
+- ✅ Fallback automático para Graphics se sprites não existirem
+
+**Status**: Usando fallback (Graphics) - funciona mas não é pixel-perfect  
 
 ## Como Funciona
 

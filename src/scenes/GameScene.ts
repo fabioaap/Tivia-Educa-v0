@@ -55,6 +55,14 @@ export class GameScene extends BaseScene {
     super(app);
     this.streakSystem = new StreakSystem();
     this.setupDebugControls();
+    this.setupGlobalMouseEvents();
+  }
+  
+  private setupGlobalMouseEvents(): void {
+    // Evento global de mouse up para soltar drag
+    window.addEventListener('pointerup', () => {
+      this.debugControlPanel?.stopDragging();
+    });
   }
 
   private setupDebugControls(): void {
@@ -432,7 +440,10 @@ export class GameScene extends BaseScene {
     this.footerContainer.position.set(0, LAYOUT.FOOTER.Y);
     this.addChild(this.footerContainer);
 
+    console.log('🔧 Creating Footer Power-ups:');
+    
     // Hint button (PEDIR DICA)
+    console.log(`  💡 HINT at x: ${LAYOUT.FOOTER.HINT_BUTTON.x}`);
     this.hintButton = new PowerUpButton({
       type: 'hint',
       x: LAYOUT.FOOTER.HINT_BUTTON.x,
@@ -440,8 +451,22 @@ export class GameScene extends BaseScene {
     });
     this.hintButton.onClick(() => this.useHint());
     this.footerContainer.addChild(this.hintButton);
+    
+    // DEBUG: Verificar propriedades do botão HINT
+    setTimeout(() => {
+      console.log('🐛 HINT BUTTON DEBUG:');
+      console.log(`   Position: (${this.hintButton?.x}, ${this.hintButton?.y})`);
+      console.log(`   Absolute: (${this.hintButton?.x}, ${this.footerContainer.y + (this.hintButton?.y || 0)})`);
+      console.log(`   Visible: ${this.hintButton?.visible}`);
+      console.log(`   Alpha: ${this.hintButton?.alpha}`);
+      console.log(`   Width/Height: ${this.hintButton?.width}x${this.hintButton?.height}`);
+      console.log(`   Children: ${this.hintButton?.children.length}`);
+      console.log(`   Parent: ${this.hintButton?.parent?.constructor.name}`);
+    }, 1000);
+
 
     // Remove alternative button (REMOVER ALTERNATIVA)
+    console.log(`  🗑️ REMOVE at x: ${LAYOUT.FOOTER.REMOVE_BUTTON.x}`);
     this.removeButton = new PowerUpButton({
       type: 'remove',
       x: LAYOUT.FOOTER.REMOVE_BUTTON.x,
@@ -451,6 +476,7 @@ export class GameScene extends BaseScene {
     this.footerContainer.addChild(this.removeButton);
 
     // Skip button (PULAR QUESTÃO)
+    console.log(`  ⏭️ SKIP at x: ${LAYOUT.FOOTER.SKIP_BUTTON.x}`);
     this.skipButton = new PowerUpButton({
       type: 'skip',
       x: LAYOUT.FOOTER.SKIP_BUTTON.x,
@@ -655,6 +681,12 @@ export class GameScene extends BaseScene {
   }
 
   update(_delta: number): void {
+    // Atualizar drag do painel de controles
+    if (this.debugControlPanel) {
+      const mousePos = this.app.renderer.events.pointer;
+      this.debugControlPanel.update(mousePos.global.x, mousePos.global.y);
+    }
+    
     // TODO: Atualizar timer
     // const currentTime = this.timerCircle.getTime();
     // this.timerCircle.setTime(currentTime - _delta * 16.67, 90000);

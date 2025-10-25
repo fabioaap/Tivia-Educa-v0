@@ -70,43 +70,82 @@ export class AlternativeButton extends Container {
   }
 
   private loadSprites(): void {
+    // Tenta carregar sprites GENÉRICOS primeiro (recomendado)
+    // Se não existir, tenta sprites ESPECÍFICOS por letra (fallback)
     const letter = this.config.letter.toLowerCase();
     const states: AlternativeState[] = ['normal', 'hovered', 'correct', 'wrong'];
     
     let loadedCount = 0;
+    let usedFormat: 'generic' | 'specific' | 'none' = 'none';
+    const loadedStates = new Set<AlternativeState>();
     
+    // Tentativa 1: Formato GENÉRICO (alternative-normal.png)
     for (const state of states) {
       try {
-        // Ajusta para o formato: alternative-a-normal.png
-        const path = `/assets/ui/alternatives/alternative-${letter}-${state}.png`;
+        const path = `/assets/ui/alternatives/alternative-${state}.png`;
         const sprite = Sprite.from(path);
         
-        // Configura sprite
-        if (sprite.texture) {
+        if (sprite.texture && sprite.texture.baseTexture) {
           sprite.width = this.config.width;
           sprite.height = this.config.height;
           sprite.visible = false;
           this.sprites.set(state, sprite);
-          this.addChildAt(sprite, 0); // Adiciona atrás dos textos
+          this.addChildAt(sprite, 0);
           loadedCount++;
+          loadedStates.add(state);
+          usedFormat = 'generic';
         }
       } catch (error) {
-        // Sprite individual não carregou
+        // Sprite genérico não encontrado, continua
       }
     }
     
-    // Só usa sprites se todos carregaram
-    if (loadedCount === states.length) {
+    // Tentativa 2: Formato ESPECÍFICO (alternative-a-normal.png)
+    if (loadedCount === 0) {
+      for (const state of states) {
+        try {
+          const path = `/assets/ui/alternatives/alternative-${letter}-${state}.png`;
+          const sprite = Sprite.from(path);
+          
+          if (sprite.texture && sprite.texture.baseTexture) {
+            sprite.width = this.config.width;
+            sprite.height = this.config.height;
+            sprite.visible = false;
+            this.sprites.set(state, sprite);
+            this.addChildAt(sprite, 0);
+            loadedCount++;
+            loadedStates.add(state);
+            usedFormat = 'specific';
+          }
+        } catch (error) {
+          // Sprite específico não encontrado
+        }
+      }
+    }
+    
+    // Fallback: usa 'normal' como 'hovered' se não existir
+    if (!loadedStates.has('hovered') && loadedStates.has('normal')) {
+      const normalSprite = this.sprites.get('normal');
+      if (normalSprite) {
+        this.sprites.set('hovered', normalSprite);
+        loadedCount++;
+        loadedStates.add('hovered');
+        console.log(`  ↳ Using 'normal' sprite as fallback for 'hovered'`);
+      }
+    }
+    
+    // Resultado
+    if (loadedCount >= 3 && loadedStates.has('normal')) {
       this.useFallback = false;
       this.bg.visible = false;
-      console.log(`✓ Alternative sprites loaded for ${letter}`);
+      console.log(`✓ Alternative sprites loaded (${usedFormat} format, ${loadedCount}/${states.length}) for ${letter}`);
     } else {
       this.useFallback = true;
       this.bg.visible = true;
       // Limpa sprites parciais
       this.sprites.forEach(sprite => sprite?.destroy());
       this.sprites.clear();
-      console.warn(`Alternative sprites not found for ${letter}, using fallback (loaded ${loadedCount}/${states.length})`);
+      console.log(`⚠️ Alternative sprites incomplete (${loadedCount}/${states.length}), using fallback Graphics for ${letter}`);
     }
   }
 
@@ -271,6 +310,16 @@ export class AlternativeButton extends Container {
   public setText(text: string): void {
     this.config.text = text;
     this.contentText.text = text;
+  }
+  
+  public setLetter(letter: string): void {
+    this.config.letter = letter;
+    this.letterText.text = letter;
+  }
+  
+  public updateContent(letter: string, text: string): void {
+    this.setLetter(letter);
+    this.setText(text);
   }
 
   public destroy(): void {
