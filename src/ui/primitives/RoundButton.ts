@@ -16,6 +16,7 @@ export interface RoundButtonConfig {
   borderWidth?: number;
   label?: string;
   fontSize?: number;
+  fontFamily?: string;
   fontColor?: number;
   icon?: string;
   onClick?: () => void;
@@ -43,6 +44,7 @@ export class RoundButton extends Container {
       borderColor: config.borderColor ?? 0x56C2DA,
       borderWidth: config.borderWidth ?? 3,
       fontSize: config.fontSize ?? 28,
+      fontFamily: config.fontFamily ?? 'Montserrat',
       fontColor: config.fontColor ?? 0xFFFFFF,
     };
 
@@ -59,7 +61,7 @@ export class RoundButton extends Container {
       this.labelText = new Text({
         text: displayText,
         style: {
-          fontFamily: 'Montserrat',
+          fontFamily: this.config.fontFamily,
           fontSize: this.config.fontSize,
           fontWeight: '700',
           fill: this.config.fontColor,

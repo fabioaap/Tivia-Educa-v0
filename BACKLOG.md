@@ -260,6 +260,22 @@
   - Exibir score acumulado
   - Persistir para tela de resultados
 
+- [ ] **#31** - Automatizar slicing dos gabaritos por cena
+  - Criar script `scripts/split-gabarito.js`
+  - Entrada: `public/gabarito-<scene>.svg`
+  - Saída: sprites em `public/assets/layout/<scene>/` + fallback PNG
+  - Adicionar `npm run layout:validate <scene>` para checar dimensões dos PNGs contra o baseline
+
+- [ ] **#32** - Gerar tokens/baseline por cena
+  - Estender `npm run layout:sync` com flag `--scene`
+  - Persistir `generatedLayout-<scene>.ts` e `layoutBaseline-<scene>.json`
+  - Atualizar teste `layoutTokens` para aceitar cena alvo
+
+- [ ] **#33** - Integrar sprites recortados nas cenas Pixi
+  - Trocar Graphics nativos por `Sprite.from` dos assets por cena
+  - Posicionar textos/estados din��micos via tokens individuais
+  - Validar overlay pixel-perfect em cada cena
+
 ---
 
 ## 🚫 BLOQUEIOS (0 tarefas)

@@ -20,15 +20,17 @@
     "test:visual": "playwright test tests/visual --update-snapshots",
     "test:coverage": "vitest run --coverage",
     "analyze": "vite-bundle-visualizer",
-    "layout:sync": "node scripts/extract-layout.js"
+    "layout:sync": "node scripts/extract-layout.js",
+    "layout:slice": "node scripts/split-gabarito.js",
+    "layout:validate": "node scripts/validate-layout-slices.js"
   },
   "dependencies": {
-    "pixi.js": "8.0.5",
+    "axios": "1.6.7",
+    "dexie": "4.0.1",
     "gsap": "3.12.5",
     "howler": "2.2.4",
-    "xstate": "5.9.1",
-    "dexie": "4.0.1",
-    "axios": "1.6.7"
+    "pixi.js": "8.0.5",
+    "xstate": "5.9.1"
   },
   "devDependencies": {
     "@playwright/test": "1.42.1",
@@ -42,6 +44,8 @@
     "msw": "2.2.1",
     "playwright": "1.42.1",
     "prettier": "3.2.5",
+    "svg-path-bbox": "^2.1.0",
+    "sharp": "^0.33.2",
     "typescript": "5.3.3",
     "vite": "5.1.6",
     "vite-bundle-visualizer": "1.0.1",
@@ -54,3 +58,4 @@
     "npm": ">=10.0.0"
   }
 }
+

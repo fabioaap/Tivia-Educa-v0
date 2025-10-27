@@ -1,4 +1,5 @@
 import { LAYOUT_TOKENS } from './generatedLayout';
+import { GAME_LAYOUT_ASSETS } from './layoutAssets';
 
 // Design constants (pixel perfect para 1920x1080 base)
 export const DESIGN = {
@@ -250,6 +251,8 @@ export const LAYOUT = {
     COUNTER_OFFSET_Y: 10, // Offset vertical para posicionar o contador acima do botão
   },
 } as const;
+
+export const LAYOUT_ASSETS = GAME_LAYOUT_ASSETS;
 
 // Typography
 export const TYPOGRAPHY = {

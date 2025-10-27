@@ -4,55 +4,53 @@
  * Coordenadas extraídas do Figma HTML
  */
 import { Container, Text } from 'pixi.js';
-import { LAYOUT } from '../../config/constants';
+import { LAYOUT, COLORS, TYPOGRAPHY } from '../../config/constants';
 import { GlassPanel } from '../primitives/GlassPanel';
 
 export class QuestionCard extends Container {
-  private panel: GlassPanel;
-  private questionText: Text;
+  private readonly panel: GlassPanel;
+  private readonly questionText: Text;
 
   constructor() {
     super();
 
     const cardLayout = LAYOUT.QUESTION_CARD;
-    console.log(`🎨 QuestionCard: Creating card ${cardLayout.WIDTH}x${cardLayout.HEIGHT}...`);
+    console.log(`🎯 QuestionCard: creating card ${cardLayout.WIDTH}x${cardLayout.HEIGHT}...`);
 
-    // Panel glassmorphism (fundo + outline ciano)
     this.panel = new GlassPanel({
       width: cardLayout.WIDTH,
       height: cardLayout.HEIGHT,
-      borderRadius: 60,
-      bgColor: 0x000000, // Preto puro (volta ao original)
-      bgAlpha: 0.85, // Semi-transparente glassmorphism (0.95→0.85)
-      borderColor: 0x0A9C9A, // Ciano primário
-      borderWidth: 3, // Borda fina final (6→3)
+      borderRadius: 48,
+      bgColor: COLORS.BG_DARK,
+      bgAlpha: 0.86,
+      borderColor: COLORS.PRIMARY_CYAN,
+      borderWidth: 2,
     });
     this.addChild(this.panel);
-    console.log('  ✅ Panel added');
 
-    // Texto da pergunta (centralizado)
     this.questionText = new Text({
       text: '',
       style: {
-        fontFamily: 'Montserrat',
-        fontSize: 44,
-        fontWeight: '700',
-        fill: 0xFFFFFF,
-        align: 'center',
+        fontFamily: TYPOGRAPHY.FONT_BODY,
+        fontSize: TYPOGRAPHY.SIZES.QUESTION,
+        fontWeight: TYPOGRAPHY.WEIGHTS.BOLD,
+        fill: COLORS.TEXT_WHITE,
+        align: 'left',
         wordWrap: true,
         wordWrapWidth: cardLayout.TEXT_WIDTH,
+        lineHeight: Math.round(TYPOGRAPHY.SIZES.QUESTION * 1.3),
       },
     });
-    this.questionText.anchor.set(0.5);
-    this.questionText.x = cardLayout.WIDTH / 2;
-    this.questionText.y = cardLayout.HEIGHT / 2;
+    this.questionText.anchor.set(0, 0);
+    this.questionText.position.set(cardLayout.TEXT_X, cardLayout.TEXT_Y);
     this.addChild(this.questionText);
-    console.log('  ✅ Text added (empty)');
   }
 
   public setQuestion(text: string): void {
     this.questionText.text = text;
     this.questionText.style.wordWrapWidth = LAYOUT.QUESTION_CARD.TEXT_WIDTH;
-    console.log(`  📝 QuestionCard text set: "${text.substring(0, 50)}..." | visible:${this.visible} alpha:${this.alpha}`);
+    console.log(
+      `📝 QuestionCard text set: "${text.substring(0, 50)}..." | visible:${this.visible} alpha:${this.alpha}`,
+    );
   }
 }

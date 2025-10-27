@@ -3,9 +3,9 @@
  * Renderização nativa via Graphics (sem PNGs)
  * Coordenadas absolutas extraídas do Figma HTML
  */
-import { Container, Text } from 'pixi.js';
-import { LAYOUT } from '../../config/constants';
+import { Container, Graphics, Text } from 'pixi.js';
 import { RoundButton } from '../primitives/RoundButton';
+import { LAYOUT, COLORS, TYPOGRAPHY } from '../../config/constants';
 
 interface Alternative {
   letter: string;
@@ -13,162 +13,176 @@ interface Alternative {
   isCorrect: boolean;
 }
 
-const SLOT_SEQUENCE = ['D', 'A', 'B', 'C'] as const;
-type SlotKey = (typeof SLOT_SEQUENCE)[number];
+type SlotKey = 'A' | 'B' | 'C' | 'D';
+
+interface AlternativeSlot {
+  button: RoundButton;
+  contentText: Text;
+  letterBadge: Graphics;
+  letterText: Text;
+}
+
+const SLOT_SEQUENCE: SlotKey[] = ['D', 'A', 'B', 'C'];
 
 export class AlternativesGrid extends Container {
-  private buttons: Map<string, RoundButton> = new Map();
-  private alternativeTexts: Map<string, Text> = new Map();
+  private readonly slots = new Map<SlotKey, AlternativeSlot>();
   private readonly buttonWidth: number;
   private readonly buttonHeight: number;
+  private readonly onSelect: (letter: string) => void;
 
   constructor(onSelect: (letter: string) => void) {
     super();
+    this.sortableChildren = true;
+    this.onSelect = onSelect;
 
-    console.log('🎨 AlternativesGrid: Creating native alternative buttons...');
+    console.log('🎯 AlternativesGrid: creating native alternative buttons...');
 
     const gridLayout = LAYOUT.ALTERNATIVES_GRID;
     this.buttonWidth = gridLayout.BUTTON_WIDTH;
     this.buttonHeight = gridLayout.BUTTON_HEIGHT;
 
-    SLOT_SEQUENCE.forEach((letter) => {
-      const slot = gridLayout.SLOTS[letter];
+    SLOT_SEQUENCE.forEach((letter) => this.createSlot(letter));
+  }
 
-      // Botão glassmorphism (fundo branco + outline ciano)
-      const button = new RoundButton({
-        width: this.buttonWidth,
-        height: this.buttonHeight,
-        borderRadius: 30,
-        bgColor: 0xF5F5F5,
-        bgAlpha: 0.9,
-        hoverColor: 0xFFFFFF,
-        pressedColor: 0xE0E0E0,
-        borderColor: 0x0A9C9A,
-        borderWidth: 6,
-        label: '', // Vazio porque texto vai separado
-        onClick: () => onSelect(letter),
-      });
-  button.position.set(slot.x, slot.y);
-      button.zIndex = 1; // Botão atrás do texto
-      this.addChild(button);
-      this.buttons.set(letter, button);
-      console.log(`  ✅ Button ${letter} at (${slot.x}, ${slot.y})`);
+  private createSlot(letter: SlotKey): void {
+    const gridLayout = LAYOUT.ALTERNATIVES_GRID;
+    const slot = gridLayout.SLOTS[letter];
+    if (!slot) {
+      console.warn(`⚠️ Slot ${letter} not found in layout tokens.`);
+      return;
+    }
 
-      // Texto da alternativa (sobre o botão, não como child)
-      const text = new Text({
-        text: `${letter}. Texto placeholder`, // DEBUG: Texto visível de teste
-        style: {
-          fontFamily: 'Montserrat',
-          fontSize: 32, // Reduzido de 36 para evitar overflow
-          fontWeight: '700',
-          fill: 0x006B7E, // Azul esverdeado (visível em fundo branco)
-          align: 'center',
-          wordWrap: true,
-          wordWrapWidth: this.buttonWidth - 80, // padding 40px cada lado (mais espaço)
-          lineHeight: 38, // Espaçamento entre linhas
-        },
-      });
-      text.anchor.set(0.5);
-  text.x = slot.x + this.buttonWidth / 2;
-  text.y = slot.y + this.buttonHeight / 2;
-      text.zIndex = 10; // Texto na frente
-      text.alpha = 1; // Garante visibilidade total
-      text.visible = true; // Força visível
-      this.addChild(text);
-      this.alternativeTexts.set(letter, text);
-      console.log(`  📝 Text ${letter}: "${text.text}" at (${text.x}, ${text.y}) | visible:${text.visible} alpha:${text.alpha} zIndex:${text.zIndex}`);
+    const container = new Container();
+    container.position.set(slot.x, slot.y);
+    this.addChild(container);
+
+    const button = new RoundButton({
+      width: this.buttonWidth,
+      height: this.buttonHeight,
+      borderRadius: 36,
+      bgColor: 0x0a1f33,
+      bgAlpha: 0.95,
+      hoverColor: 0x123754,
+      pressedColor: 0x071424,
+      borderColor: COLORS.PRIMARY_CYAN,
+      borderWidth: 2,
+      onClick: () => this.onSelect(letter),
     });
-    
-    // IMPORTANTE: Habilitar sorting por zIndex
-    this.sortableChildren = true;
+    container.addChild(button);
+
+    const badge = new Graphics();
+    badge.circle(this.buttonWidth * 0.06, this.buttonHeight / 2, 32);
+    badge.fill({ color: COLORS.PRIMARY_CYAN, alpha: 0.18 });
+    badge.circle(this.buttonWidth * 0.06, this.buttonHeight / 2, 32);
+    badge.stroke({ width: 3, color: COLORS.PRIMARY_CYAN });
+    container.addChild(badge);
+
+    const letterText = new Text({
+      text: letter,
+      style: {
+        fontFamily: TYPOGRAPHY.FONT_DISPLAY,
+        fontSize: 26,
+        fontWeight: TYPOGRAPHY.WEIGHTS.BOLD,
+        fill: COLORS.PRIMARY_CYAN,
+      },
+    });
+    letterText.anchor.set(0.5);
+    letterText.position.set(this.buttonWidth * 0.06, this.buttonHeight / 2);
+    container.addChild(letterText);
+
+    const contentText = new Text({
+      text: 'Texto placeholder',
+      style: {
+        fontFamily: TYPOGRAPHY.FONT_BODY,
+        fontSize: TYPOGRAPHY.SIZES.ALTERNATIVE,
+        fontWeight: TYPOGRAPHY.WEIGHTS.BOLD,
+        fill: 0x7ff0ff,
+        align: 'left',
+        wordWrap: true,
+        wordWrapWidth: this.buttonWidth - 140,
+        lineHeight: Math.round(TYPOGRAPHY.SIZES.ALTERNATIVE * 1.35),
+      },
+    });
+    contentText.anchor.set(0, 0.5);
+    contentText.position.set(this.buttonWidth * 0.18, this.buttonHeight / 2);
+    container.addChild(contentText);
+
+    this.slots.set(letter, {
+      button,
+      contentText,
+      letterBadge: badge,
+      letterText,
+    });
+
+    console.log(`✅ Slot ${letter} created at (${slot.x}, ${slot.y})`);
   }
 
   public setAlternatives(alternatives: Alternative[]): void {
-    // IMPORTANTE: Limpar COMPLETAMENTE os textos antigos antes de atualizar
-    // Remove do Pixi e apaga da memória
-    this.alternativeTexts.forEach((text, letter) => {
-      this.removeChild(text);
-      text.destroy();
-      this.alternativeTexts.delete(letter);
+    const byLetter = new Map<SlotKey, Alternative>();
+    alternatives.forEach((alt) => {
+      const letter = alt.letter.toUpperCase() as SlotKey;
+      if (SLOT_SEQUENCE.includes(letter)) {
+        byLetter.set(letter, alt);
+      }
     });
 
-    // Recriar com os novos textos
-    const gridLayout = LAYOUT.ALTERNATIVES_GRID;
-    const buttonWidth = this.buttonWidth;
-    const buttonHeight = this.buttonHeight;
-
-    alternatives.forEach((alt) => {
-      const slot = gridLayout.SLOTS[alt.letter as SlotKey];
+    SLOT_SEQUENCE.forEach((letter) => {
+      const slot = this.slots.get(letter);
       if (!slot) return;
 
-      const text = new Text({
-        text: alt.text,
-        style: {
-          fontFamily: 'Montserrat',
-          fontSize: 32,
-          fontWeight: '700',
-          fill: 0x006B7E,
-          align: 'center',
-          wordWrap: true,
-          wordWrapWidth: buttonWidth - 80,
-          lineHeight: 38,
-        },
-      });
-      text.anchor.set(0.5);
-      text.x = slot.x + buttonWidth / 2;
-      text.y = slot.y + buttonHeight / 2;
-      text.zIndex = 10;
-      text.alpha = 1;
-      text.visible = true;
-      this.addChild(text);
-      this.alternativeTexts.set(alt.letter, text);
-      console.log(`  📝 Alternative ${alt.letter}: ${alt.text.substring(0, 30)}...`);
+      const alt = byLetter.get(letter);
+      if (alt) {
+        slot.contentText.text = alt.text;
+        slot.letterText.text = letter;
+        slot.contentText.alpha = 1;
+        slot.button.alpha = 1;
+        slot.button.tint = COLORS.TEXT_WHITE;
+        slot.button.eventMode = 'static';
+      } else {
+        slot.contentText.text = '';
+        slot.letterText.text = letter;
+        slot.button.eventMode = 'none';
+        slot.button.alpha = 0.5;
+      }
     });
   }
 
   public disableButton(letter: string): void {
-    const button = this.buttons.get(letter);
-    if (button) {
-      button.alpha = 0.5;
-      button.eventMode = 'none';
-    }
+    const slot = this.slots.get(letter.toUpperCase() as SlotKey);
+    if (!slot) return;
+    slot.button.alpha = 0.45;
+    slot.contentText.alpha = 0.45;
+    slot.button.eventMode = 'none';
   }
 
   public enableButton(letter: string): void {
-    const button = this.buttons.get(letter);
-    if (button) {
-      button.alpha = 1;
-      button.tint = 0xFFFFFF;
-      button.eventMode = 'static';
-    }
+    const slot = this.slots.get(letter.toUpperCase() as SlotKey);
+    if (!slot) return;
+    slot.button.alpha = 1;
+    slot.button.tint = COLORS.TEXT_WHITE;
+    slot.contentText.alpha = 1;
+    slot.button.eventMode = 'static';
   }
 
   public markCorrect(letter: string): void {
-    const button = this.buttons.get(letter);
-    if (button) {
-      button.tint = 0x00FF00; // Verde
-    }
+    const slot = this.slots.get(letter.toUpperCase() as SlotKey);
+    if (!slot) return;
+    slot.button.tint = COLORS.ACCENT_GREEN;
   }
 
   public markWrong(letter: string): void {
-    const button = this.buttons.get(letter);
-    if (button) {
-      button.tint = 0xFF0000; // Vermelho
-    }
+    const slot = this.slots.get(letter.toUpperCase() as SlotKey);
+    if (!slot) return;
+    slot.button.tint = COLORS.ACCENT_RED;
   }
 
   public reset(): void {
-    // Reseta apenas estados visuais (cores, alpha, interatividade)
-    this.buttons.forEach((button) => {
-      button.alpha = 1;
-      button.tint = 0xFFFFFF;
-      button.eventMode = 'static';
+    this.slots.forEach((slot) => {
+      slot.button.alpha = 1;
+      slot.button.tint = COLORS.TEXT_WHITE;
+      slot.button.eventMode = 'static';
+      slot.contentText.alpha = 1;
+      slot.contentText.text = '';
     });
-    // Remover COMPLETAMENTE textos antigos (não só limpar texto)
-    this.alternativeTexts.forEach((text) => {
-      this.removeChild(text);
-      text.destroy();
-    });
-    this.alternativeTexts.clear();
   }
 }
