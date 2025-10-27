@@ -74,8 +74,14 @@ export class ProgressBar extends Container {
     this.fill.clear();
     const fillWidth = this.config.width * this._progress;
     if (fillWidth > 0) {
-      this.fill.roundRect(0, 0, fillWidth, this.config.height, this.config.borderRadius);
-      this.fill.fill(this.config.fillColor);
+      // Gradiente vertical do Figma: linear-gradient(180deg, #008380 0%, #80FFFC 50%, #008380 100%)
+      // Pixi.js 8 não suporta gradientes nativos via fill(), usando cor sólida por enquanto
+      // TODO: Implementar com shader ou texture para gradiente real
+      this.fill.rect(0, 0, fillWidth, this.config.height);
+      this.fill.fill({
+        color: 0x00BDB9, // Cor média do gradiente (aproximação)
+        alpha: 1,
+      });
     }
   }
 

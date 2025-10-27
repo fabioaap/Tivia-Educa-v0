@@ -1,5 +1,6 @@
 import { Container, Graphics, Sprite, Text, Assets } from 'pixi.js';
-import { DESIGN, COLORS, TYPOGRAPHY } from '@config/constants';
+import type { FederatedPointerEvent } from 'pixi.js';
+import { DESIGN } from '@config/constants';
 
 interface ComponentSpec {
   x: number;
@@ -20,6 +21,8 @@ interface DraggableComponent {
   dragOffset: { x: number; y: number };
   originalSize: { width: number; height: number };
 }
+
+type PersistedSpec = Pick<ComponentSpec, 'x' | 'y' | 'width' | 'height'>;
 
 export class PixelPerfectDebugger extends Container {
   private isVisible: boolean = false;
@@ -171,18 +174,16 @@ export class PixelPerfectDebugger extends Container {
 
   private enableInteractiveMode(): void {
     this.draggables.forEach((draggable) => {
-      const { container, bounds } = draggable;
+      const { container } = draggable;
       
       // Torna o container interativo
       container.eventMode = 'static';
       container.cursor = 'move';
-      
-      // Desenha bounds interativos
       this.updateDraggableBounds(draggable);
       
       // Eventos de drag
-      container.on('pointerdown', (e) => this.onDragStart(e, draggable));
-      container.on('pointermove', (e) => this.onDragMove(e, draggable));
+  container.on('pointerdown', (e: FederatedPointerEvent) => this.onDragStart(e, draggable));
+  container.on('pointermove', (e: FederatedPointerEvent) => this.onDragMove(e, draggable));
       container.on('pointerup', () => this.onDragEnd(draggable));
       container.on('pointerupoutside', () => this.onDragEnd(draggable));
     });
@@ -247,6 +248,8 @@ export class PixelPerfectDebugger extends Container {
       
       handlePositions.forEach((pos, index) => {
         const handle = resizeHandles[index];
+        if (!handle) return;
+        
         handle.clear();
         handle.rect(
           pos.x - handleSize / 2,
@@ -270,11 +273,11 @@ export class PixelPerfectDebugger extends Container {
         handle.visible = true;
       });
     } else {
-      resizeHandles.forEach(h => h.visible = false);
+      resizeHandles.forEach(h => { if (h) h.visible = false; });
     }
   }
 
-  private onDragStart(event: any, draggable: DraggableComponent): void {
+  private onDragStart(event: FederatedPointerEvent, draggable: DraggableComponent): void {
     if (!this.editMode) return;
     
     const { container } = draggable;
@@ -292,7 +295,7 @@ export class PixelPerfectDebugger extends Container {
     console.log(`🖱️ Dragging: ${draggable.id}`);
   }
 
-  private onDragMove(event: any, draggable: DraggableComponent): void {
+  private onDragMove(event: FederatedPointerEvent, draggable: DraggableComponent): void {
     if (!this.editMode || !draggable.isDragging) return;
     
     const { container, dragOffset } = draggable;
@@ -337,7 +340,7 @@ export class PixelPerfectDebugger extends Container {
     }
   }
 
-  private onResizeStart(event: any, draggable: DraggableComponent, direction: string): void {
+  private onResizeStart(event: FederatedPointerEvent, draggable: DraggableComponent, direction: string): void {
     if (!this.editMode) return;
     
     event.stopPropagation(); // Previne drag do container
@@ -357,7 +360,7 @@ export class PixelPerfectDebugger extends Container {
     }
   }
 
-  private onResizeMove(event: any, draggable: DraggableComponent): void {
+  private onResizeMove(event: FederatedPointerEvent, draggable: DraggableComponent): void {
     if (!this.editMode || !draggable.isResizing) return;
     
     const spec = this.specs.get(draggable.id);
@@ -481,8 +484,6 @@ export class PixelPerfectDebugger extends Container {
   }
 
   private generateChangesCode(): string {
-    let output = '';
-    
     // Agrupa mudanças por tipo
     const updates: string[] = [];
     
@@ -496,8 +497,11 @@ export class PixelPerfectDebugger extends Container {
       } else if (id.includes('skip')) {
         updates.push(`FOOTER.SKIP_BUTTON: { x: ${spec.x}, y: ${spec.y}, width: ${spec.width}, height: ${spec.height} }`);
       } else if (id.includes('alternative')) {
-        const letter = id.split('-')[1].toUpperCase();
-        updates.push(`ALT_${letter}: { x: ${spec.x}, y: ${spec.y}, width: ${spec.width}, height: ${spec.height} }`);
+        const parts = id.split('-');
+        const letter = (parts[1] || '').toUpperCase();
+        if (letter) {
+          updates.push(`ALT_${letter}: { x: ${spec.x}, y: ${spec.y}, width: ${spec.width}, height: ${spec.height} }`);
+        }
       }
     });
     
@@ -514,7 +518,7 @@ export class PixelPerfectDebugger extends Container {
     
     if (timers.length > 0) {
       output += 'HEADER: {\n';
-      timers.forEach(([id, spec]) => {
+      timers.forEach(([, spec]) => {
         output += `  TIMER: { x: ${spec.x}, y: ${spec.y}, size: ${spec.width} },\n`;
       });
       output += '},\n\n';
@@ -532,8 +536,11 @@ export class PixelPerfectDebugger extends Container {
     if (alternatives.length > 0) {
       output += 'ALTERNATIVES: {\n';
       alternatives.forEach(([id, spec]) => {
-        const letter = id.split('-')[1].toUpperCase();
-        output += `  ${letter}: { x: ${spec.x}, y: ${spec.y}, width: ${spec.width}, height: ${spec.height} },\n`;
+        const parts = id.split('-');
+        const letter = (parts[1] || '').toUpperCase();
+        if (letter) {
+          output += `  ${letter}: { x: ${spec.x}, y: ${spec.y}, width: ${spec.width}, height: ${spec.height} },\n`;
+        }
       });
       output += '},\n';
     }
@@ -792,7 +799,7 @@ export class PixelPerfectDebugger extends Container {
   }
 
   private persistChangesToLocalStorage(): void {
-    const changes: Record<string, any> = {};
+  const changes: Record<string, PersistedSpec> = {};
     
     this.specs.forEach((spec, id) => {
       changes[id] = {
@@ -812,10 +819,10 @@ export class PixelPerfectDebugger extends Container {
     if (!stored) return;
     
     try {
-      const changes = JSON.parse(stored);
+  const changes = JSON.parse(stored) as Record<string, PersistedSpec>;
       let hasChanges = false;
       
-      Object.entries(changes).forEach(([id, data]: [string, any]) => {
+  Object.entries(changes).forEach(([id, data]: [string, PersistedSpec]) => {
         const spec = this.specs.get(id);
         if (spec) {
           spec.x = data.x;

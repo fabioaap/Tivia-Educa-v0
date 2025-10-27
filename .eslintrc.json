@@ -20,7 +20,13 @@
     "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     "@typescript-eslint/explicit-function-return-type": "off",
     "@typescript-eslint/no-explicit-any": "error",
-    "no-console": ["warn", { "allow": ["warn", "error"] }]
+    "no-console": "off"
   },
-  "ignorePatterns": ["dist", "node_modules", "**/*.config.ts", "**/*.config.js"]
+  "ignorePatterns": [
+    "dist",
+    "node_modules",
+    "LAYOUT_GENERATED.ts",
+    "**/*.config.ts",
+    "**/*.config.js"
+  ]
 }

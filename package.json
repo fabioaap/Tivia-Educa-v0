@@ -19,7 +19,8 @@
     "test:performance": "playwright test tests/performance --reporter=html",
     "test:visual": "playwright test tests/visual --update-snapshots",
     "test:coverage": "vitest run --coverage",
-    "analyze": "vite-bundle-visualizer"
+    "analyze": "vite-bundle-visualizer",
+    "layout:sync": "node scripts/extract-layout.js"
   },
   "dependencies": {
     "pixi.js": "8.0.5",

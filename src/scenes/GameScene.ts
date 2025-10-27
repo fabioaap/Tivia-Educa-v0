@@ -1,55 +1,54 @@
-import { Application, Container, Graphics, Text, Sprite } from 'pixi.js';
-// import { Background } from '../ui/components/Background';
+import { Application } from 'pixi.js';
 import { BaseScene } from '@core/BaseScene';
-import { COLORS, DESIGN, LAYOUT, TYPOGRAPHY } from '@config/constants';
-import { 
-  RoundedButton, 
-  ProgressBar, 
-  Timer, 
-  PowerUpButton, 
-  AlternativeButton, 
-  StreakIndicator 
-} from '@ui/components';
-import { DebugControlPanel } from '@ui/components/DebugControlPanel';
+import { FooterHUD } from '@ui/components/FooterHUD';
+import { QuestionCard } from '@ui/components/QuestionCard';
+import { AlternativesGrid } from '@ui/components/AlternativesGrid';
+import { HeaderHUD } from '@ui/components/HeaderHUD';
 import { Question } from '@data/models/Question';
 import { StreakSystem } from '@systems/StreakSystem';
 import { PixelPerfectDebugger } from '@debug/PixelPerfectDebugger';
+import { LayoutExporter } from '../utils/LayoutExporter';
+import { DebugControlPanel } from '@ui/components/DebugControlPanel';
+import { LAYOUT } from '../config/constants';
 
 export class GameScene extends BaseScene {
-  // Header components
-  private headerContainer!: Container;
-  private backButton!: RoundedButton;
-  private homeButton!: RoundedButton;
-  private progressBar!: ProgressBar;
-  private timerCircle!: Timer;
-  private pauseButton!: RoundedButton;
-
-  // Question components
-  private questionContainer!: Container;
-  private questionText!: Text;
-  private enunciadoCard?: Container;
-  private alternativesContainer!: Container;
-  private alternatives: AlternativeButton[] = [];
-
-  // Footer components
-  private footerContainer!: Container;
-  private hintButton!: PowerUpButton;
-  private removeButton!: PowerUpButton;
-  private skipButton!: PowerUpButton;
+  // Native UI components (Graphics API)
+  private headerHUD!: HeaderHUD;
+  private questionCard!: QuestionCard;
+  private alternativesGrid!: AlternativesGrid;
+  private footerHUD!: FooterHUD;
 
   // Streak system
-  private streakIndicator!: StreakIndicator;
   private streakSystem: StreakSystem;
 
   // Debug system
   private debugger!: PixelPerfectDebugger;
   private debugControlPanel!: DebugControlPanel;
 
+  // Layout exporter
+  private layoutExporter!: LayoutExporter;
+
   // State
   private currentQuestion: Question | null = null;
   private currentQuestionIndex = 0;
   private totalQuestions = 10;
-  private selectedAlternativeIndex: number | null = null;
+  private allQuestions: Question[] = [];
+
+  // Game loop state
+  private gameState: 'playing' | 'feedback' | 'between_questions' = 'playing';
+  private timerMs = 90_000; // 90 segundos em ms
+  private timerDuration = 90_000;
+  private feedbackShowing = false;
+  private feedbackDuration = 1500; // ms para mostrar feedback antes de próxima pergunta
+  private feedbackTimer = 0;
+
+  // Scoring
+  private score = 0;
+  private correctAnswers = 0;
+  private totalAnswered = 0;
+
+  // Power-ups
+  private powerUpCounters = { hint: 3, remove: 3, skip: 3 };
 
   constructor(app: Application) {
     super(app);
@@ -134,6 +133,8 @@ export class GameScene extends BaseScene {
     // Carregar questões mock
     const response = await fetch('/assets/data/mockQuestions.json');
     const questions = (await response.json()) as Question[];
+    this.allQuestions = questions;
+    this.totalQuestions = questions.length;
     this.currentQuestion = questions[0] || null;
     return Promise.resolve();
   }
@@ -141,18 +142,7 @@ export class GameScene extends BaseScene {
   protected create(): void {
     this.createBackground();
     this.createDebugger();
-    this.createHeader();
-    this.createStreakIndicator();
-    this.createQuestionArea();
-    this.createFooter();
-    
-    // Inicia com primeira questão
-    if (this.currentQuestion) {
-      this.displayQuestion(this.currentQuestion);
-    }
-    
-    // Valida componentes após criação
-    this.validateComponents();
+    // Os componentes nativos e displayQuestion serão criados após o fundo (SVG) ser carregado em createBackground()
   }
 
   private createDebugger(): void {
@@ -163,6 +153,8 @@ export class GameScene extends BaseScene {
     
     // Cria painel de controles visuais
     this.debugControlPanel = new DebugControlPanel();
+    this.debugControlPanel.alpha = 0; // DESABILITADO - oculta painel de debug
+    this.debugControlPanel.visible = false; // Remove interatividade
     this.addChild(this.debugControlPanel);
     
     // Conecta callbacks
@@ -208,487 +200,263 @@ export class GameScene extends BaseScene {
     console.log('🎮 Debug Controls: Visual panel available at footer');
   }
 
-  private validateComponents(): void {
-    // Valida Timer
-    if (this.timerCircle) {
-      this.debugger.checkComponent(
-        'timer',
-        this.timerCircle.x,
-        this.timerCircle.y,
-        LAYOUT.HEADER.TIMER.size,
-        LAYOUT.HEADER.TIMER.size
-      );
-    }
-    
-    // Valida Power-ups
-    if (this.hintButton) {
-      this.debugger.checkComponent(
-        'hint-button',
-        this.hintButton.x,
-        this.footerContainer.y + this.hintButton.y,
-        LAYOUT.FOOTER.HINT_BUTTON.width,
-        LAYOUT.FOOTER.HINT_BUTTON.height
-      );
-    }
-    
-    if (this.removeButton) {
-      this.debugger.checkComponent(
-        'remove-button',
-        this.removeButton.x,
-        this.footerContainer.y + this.removeButton.y,
-        LAYOUT.FOOTER.REMOVE_BUTTON.width,
-        LAYOUT.FOOTER.REMOVE_BUTTON.height
-      );
-    }
-    
-    if (this.skipButton) {
-      this.debugger.checkComponent(
-        'skip-button',
-        this.skipButton.x,
-        this.footerContainer.y + this.skipButton.y,
-        LAYOUT.FOOTER.SKIP_BUTTON.width,
-        LAYOUT.FOOTER.SKIP_BUTTON.height
-      );
-    }
-    
-    // Valida Alternatives (considera posição do container)
-    this.alternatives.forEach((alt, index) => {
-      const letter = String.fromCharCode(97 + index); // a, b, c, d
-      
-      this.debugger.checkComponent(
-        `alternative-${letter}`,
-        this.alternativesContainer.x + alt.x,
-        this.alternativesContainer.y + alt.y,
-        LAYOUT.QUESTION.ALTERNATIVE.width,
-        LAYOUT.QUESTION.ALTERNATIVE.height
-      );
-    });
-    
-    // Registra componentes para edição interativa
-    this.registerComponentsForEditing();
-  }
-
-  private registerComponentsForEditing(): void {
-    // Timer
-    if (this.timerCircle) {
-      this.debugger.registerComponent('timer', this.timerCircle);
-    }
-    
-    // Power-ups (ajusta posição para absoluta)
-    if (this.hintButton) {
-      const absoluteContainer = new Container();
-      absoluteContainer.position.set(
-        this.hintButton.x,
-        this.footerContainer.y + this.hintButton.y
-      );
-      absoluteContainer.addChild(this.hintButton);
-      this.debugger.registerComponent('hint-button', this.hintButton);
-    }
-    
-    if (this.removeButton) {
-      this.debugger.registerComponent('remove-button', this.removeButton);
-    }
-    
-    if (this.skipButton) {
-      this.debugger.registerComponent('skip-button', this.skipButton);
-    }
-    
-    // Alternatives
-    this.alternatives.forEach((alt, index) => {
-      const letter = String.fromCharCode(97 + index);
-      this.debugger.registerComponent(`alternative-${letter}`, alt);
-    });
-  }
-
   private createBackground(): void {
-    // Renderiza o PNG exportado do Figma como fundo pixel-perfect
-    const bg = Sprite.from('/assets/backgrounds/tela-1-static.png');
-    bg.width = DESIGN.WIDTH;
-    bg.height = DESIGN.HEIGHT;
-    this.addChild(bg);
+    // SVG é usado APENAS como referência - NÃO renderizar no canvas
+    // Chamar direto para criar componentes nativos
+    this.sortableChildren = true;
+    this.createNativeUI();
   }
-
-  private createHeader(): void {
-    this.headerContainer = new Container();
-    this.addChild(this.headerContainer);
+  
+  private createNativeUI(): void {
+    console.log('🎨 Creating NATIVE UI components (Graphics API)...');
     
-    // Elementos estáticos (invisíveis - PNG já tem)
-    const staticElements = new Container();
-    staticElements.alpha = 0; // Oculta botões estáticos
-    this.headerContainer.addChild(staticElements);
+    // Header (progress bar + avatar + timer)
+    this.headerHUD = new HeaderHUD();
+    this.headerHUD.zIndex = 10;
+    this.addChild(this.headerHUD);
+    console.log(`  ✅ HeaderHUD added at (${this.headerHUD.x}, ${this.headerHUD.y})`);
 
-    // Back button
-    this.backButton = new RoundedButton({
-      size: LAYOUT.HEADER.BACK_BUTTON.size,
-      icon: '◀',
-      iconSize: 32,
-    });
-    this.backButton.position.set(
-      LAYOUT.HEADER.BACK_BUTTON.x + LAYOUT.HEADER.BACK_BUTTON.size / 2,
-      LAYOUT.HEADER.BACK_BUTTON.y + LAYOUT.HEADER.BACK_BUTTON.size / 2
-    );
-    this.backButton.onClick = () => console.log('Back clicked');
-    staticElements.addChild(this.backButton);
+    // Ajuste fino: QuestionCard (x:380, y:230 do Figma)
+    this.questionCard = new QuestionCard();
+    this.questionCard.position.set(LAYOUT.QUESTION_CARD.X, LAYOUT.QUESTION_CARD.Y);
+    this.questionCard.zIndex = 10;
+    this.addChild(this.questionCard);
+    console.log(`  ✅ QuestionCard added at (${this.questionCard.x}, ${this.questionCard.y}) | visible:${this.questionCard.visible} alpha:${this.questionCard.alpha}`);
+    // Ajuste fino: AlternativesGrid (x:360, y:370 do Figma)
+    this.alternativesGrid = new AlternativesGrid((letter: string) => this.handleAlternativeClick(letter));
+    this.alternativesGrid.position.set(LAYOUT.ALTERNATIVES_GRID.X, LAYOUT.ALTERNATIVES_GRID.Y);
+    this.alternativesGrid.zIndex = 10;
+    this.addChild(this.alternativesGrid);
+    console.log(`  ✅ AlternativesGrid added at (${this.alternativesGrid.x}, ${this.alternativesGrid.y}) | children:${this.alternativesGrid.children.length}`);
 
-    // Home button
-    this.homeButton = new RoundedButton({
-      size: LAYOUT.HEADER.HOME_BUTTON.size,
-      icon: '🏠',
-      iconSize: 32,
-    });
-    this.homeButton.position.set(
-      LAYOUT.HEADER.HOME_BUTTON.x + LAYOUT.HEADER.HOME_BUTTON.size / 2,
-      LAYOUT.HEADER.HOME_BUTTON.y + LAYOUT.HEADER.HOME_BUTTON.size / 2
-    );
-    this.homeButton.onClick = () => console.log('Home clicked');
-    staticElements.addChild(this.homeButton);
+    // Footer ANTES de displayQuestion (necessário para callbacks)
+    this.createFooter();
 
-    // Pause button
-    this.pauseButton = new RoundedButton({
-      size: LAYOUT.HEADER.PAUSE.size,
-      icon: '⏸',
-      iconSize: 28,
-    });
-    this.pauseButton.position.set(
-      LAYOUT.HEADER.PAUSE.x + LAYOUT.HEADER.PAUSE.size / 2,
-      LAYOUT.HEADER.PAUSE.y + LAYOUT.HEADER.PAUSE.size / 2
-    );
-    this.pauseButton.onClick = () => console.log('Pause clicked');
-    staticElements.addChild(this.pauseButton);
+    // Agora sim, pode exibir a primeira questão (após garantir todos os componentes criados)
+    setTimeout(() => {
+      if (this.currentQuestion && this.questionCard && this.alternativesGrid) {
+        this.displayQuestion(this.currentQuestion);
+      }
+    }, 0);
 
-    // ELEMENTOS DINÂMICOS (visíveis e animáveis)
-    // Progress bar
-    this.progressBar = new ProgressBar({
-      width: LAYOUT.HEADER.PROGRESS_BAR.width,
-      height: LAYOUT.HEADER.PROGRESS_BAR.height,
-      label: 'EDUCACROSS EXTREME',
-    });
-    this.progressBar.position.set(
-      LAYOUT.HEADER.PROGRESS_BAR.x,
-      LAYOUT.HEADER.PROGRESS_BAR.y
-    );
-    this.progressBar.setProgress(0.1);
-    this.progressBar.alpha = 0; // Temporariamente oculto - PNG já mostra
-    this.headerContainer.addChild(this.progressBar);
-
-    // Timer (VISÍVEL e ANIMÁVEL)
-    this.timerCircle = new Timer({
-      size: LAYOUT.HEADER.TIMER.size,
-    });
-    this.timerCircle.position.set(
-      LAYOUT.HEADER.TIMER.x,
-      LAYOUT.HEADER.TIMER.y
-    );
-    this.timerCircle.setTime(90000, 90000); // 1:30
-    // Timer fica VISÍVEL para animação em tempo real
-    this.headerContainer.addChild(this.timerCircle);
-  }
-
-  private createStreakIndicator(): void {
-    // Indicador de streak no centro da tela (entre header e questões)
-    this.streakIndicator = new StreakIndicator();
-    this.streakIndicator.position.set(
-      DESIGN.WIDTH / 2,
-      DESIGN.HEIGHT / 2 - 150 // Ajustar conforme necessário
-    );
-    this.addChild(this.streakIndicator);
-  }
-
-  private createQuestionArea(): void {
-    this.questionContainer = new Container();
-    this.questionContainer.alpha = 0; // Oculta - PNG já tem os visuais
-    this.questionContainer.position.set(
-      LAYOUT.QUESTION.CONTAINER.x,
-      LAYOUT.QUESTION.CONTAINER.y
-    );
-    this.addChild(this.questionContainer);
-
-    // O PNG já tem o visual - removemos backgrounds duplicados
-    
-    // Question text (invisível - o PNG já tem o texto visível)
-    this.questionText = new Text({
-      text: '',
-      style: {
-        fontFamily: TYPOGRAPHY.FONT_BODY,
-        fontSize: TYPOGRAPHY.SIZES.QUESTION,
-        fill: COLORS.TEXT_WHITE,
-        fontWeight: TYPOGRAPHY.WEIGHTS.BOLD,
-        wordWrap: true,
-        wordWrapWidth: LAYOUT.QUESTION.CONTAINER.width - LAYOUT.QUESTION.TEXT.paddingX * 2,
-        align: 'center',
-      },
-    });
-    this.questionText.anchor.set(0.5, 0);
-    this.questionText.position.set(
-      LAYOUT.QUESTION.CONTAINER.width / 2,
-      LAYOUT.QUESTION.TEXT.paddingY
-    );
-    this.questionText.alpha = 0; // Oculta pois o PNG já mostra o texto
-    this.questionContainer.addChild(this.questionText);
-
-    // Alternatives container (posiciona no grid correto)
-    this.alternativesContainer = new Container();
-    this.alternativesContainer.position.set(
-      LAYOUT.QUESTION.ALTERNATIVES_GRID.x,
-      LAYOUT.QUESTION.ALTERNATIVES_GRID.y
-    );
-    this.addChild(this.alternativesContainer); // Adiciona direto à cena, não ao questionContainer
+    // Registrar componentes no Layout Exporter
+    this.layoutExporter = new LayoutExporter();
+    this.layoutExporter.registerComponent('header', this.headerHUD);
+    this.layoutExporter.registerComponent('questionCard', this.questionCard);
+    this.layoutExporter.registerComponent('alternativesGrid', this.alternativesGrid);
+    if (this.footerHUD) {
+      this.layoutExporter.registerComponent('footer', this.footerHUD);
+    }
+    console.log('📐 Layout Exporter ativo: pressione [E] para exportar coordenadas');
   }
 
   private createFooter(): void {
-    this.footerContainer = new Container();
-    this.footerContainer.position.set(0, LAYOUT.FOOTER.Y);
-    this.addChild(this.footerContainer);
-
-    console.log('🔧 Creating Footer Power-ups:');
+    console.log('🎨 Creating NATIVE FooterHUD (Graphics API):');
     
-    // Hint button (PEDIR DICA)
-    console.log(`  💡 HINT at x: ${LAYOUT.FOOTER.HINT_BUTTON.x}`);
-    this.hintButton = new PowerUpButton({
-      type: 'hint',
-      x: LAYOUT.FOOTER.HINT_BUTTON.x,
-      y: 20,
+    // Novo FooterHUD nativo com callbacks conectados aos métodos do GameScene
+    this.footerHUD = new FooterHUD({
+      onHint: () => this.useHint(),
+      onRemove: () => this.useRemoveAlternative(),
+      onSkip: () => this.skipQuestion(),
     });
-    this.hintButton.onClick(() => this.useHint());
-    this.footerContainer.addChild(this.hintButton);
-    
-    // DEBUG: Verificar propriedades do botão HINT
-    setTimeout(() => {
-      console.log('🐛 HINT BUTTON DEBUG:');
-      console.log(`   Position: (${this.hintButton?.x}, ${this.hintButton?.y})`);
-      console.log(`   Absolute: (${this.hintButton?.x}, ${this.footerContainer.y + (this.hintButton?.y || 0)})`);
-      console.log(`   Visible: ${this.hintButton?.visible}`);
-      console.log(`   Alpha: ${this.hintButton?.alpha}`);
-      console.log(`   Width/Height: ${this.hintButton?.width}x${this.hintButton?.height}`);
-      console.log(`   Children: ${this.hintButton?.children.length}`);
-      console.log(`   Parent: ${this.hintButton?.parent?.constructor.name}`);
-    }, 1000);
-
-
-    // Remove alternative button (REMOVER ALTERNATIVA)
-    console.log(`  🗑️ REMOVE at x: ${LAYOUT.FOOTER.REMOVE_BUTTON.x}`);
-    this.removeButton = new PowerUpButton({
-      type: 'remove',
-      x: LAYOUT.FOOTER.REMOVE_BUTTON.x,
-      y: 20,
-    });
-    this.removeButton.onClick(() => this.useRemoveAlternative());
-    this.footerContainer.addChild(this.removeButton);
-
-    // Skip button (PULAR QUESTÃO)
-    console.log(`  ⏭️ SKIP at x: ${LAYOUT.FOOTER.SKIP_BUTTON.x}`);
-    this.skipButton = new PowerUpButton({
-      type: 'skip',
-      x: LAYOUT.FOOTER.SKIP_BUTTON.x,
-      y: 20,
-    });
-    this.skipButton.onClick(() => this.skipQuestion());
-    this.footerContainer.addChild(this.skipButton);
+    this.footerHUD.position.set(LAYOUT.FOOTER.X, LAYOUT.FOOTER.Y);
+    this.addChild(this.footerHUD); // Adiciona direto à cena (coordenadas absolutas)
   }
 
   private displayQuestion(question: Question): void {
-    // Atualiza texto da questão
-    this.questionText.text = question.text;
-
-    // Cria/atualiza enunciado destacado
-    if (question.enunciado) {
-      this.createEnunciadoCard(question.enunciado);
-    }
-
-    // Cria alternativas
-    this.createAlternatives(question.alternatives);
-
-    // Atualiza progress bar
-    const progress = (this.currentQuestionIndex + 1) / this.totalQuestions;
-    this.progressBar.setProgress(progress, true);
-  }
-
-  private createEnunciadoCard(text: string): void {
-    // Remove card anterior se existir
-    if (this.enunciadoCard) {
-      this.questionContainer.removeChild(this.enunciadoCard);
-    }
-
-    this.enunciadoCard = new Container();
+    this.currentQuestion = question;
     
-    const cardBg = new Graphics();
-    cardBg.roundRect(0, 0, 700, 140, 20);
-    cardBg.fill(0x00ff8833);
-    cardBg.roundRect(0, 0, 700, 140, 20);
-    cardBg.stroke({ width: 3, color: COLORS.PRIMARY_CYAN });
-    this.enunciadoCard.addChild(cardBg);
-
-    const enunciadoText = new Text({
-      text,
-      style: {
-        fontFamily: TYPOGRAPHY.FONT_BODY,
-        fontSize: TYPOGRAPHY.SIZES.ENUNCIADO,
-        fill: COLORS.TEXT_WHITE,
-        fontWeight: TYPOGRAPHY.WEIGHTS.MEDIUM,
-        wordWrap: true,
-        wordWrapWidth: 640,
-        align: 'center',
-      },
-    });
-    enunciadoText.anchor.set(0.5);
-    enunciadoText.position.set(350, 70);
-    this.enunciadoCard.addChild(enunciadoText);
-
-    this.enunciadoCard.position.set(200, 180);
-    this.questionContainer.addChild(this.enunciadoCard);
-  }
-
-  private createAlternatives(alternatives: string[]): void {
-    // Remove alternativas antigas
-    this.alternatives.forEach(alt => alt.destroy());
-    this.alternatives = [];
-    this.alternativesContainer.removeChildren();
-
-    const letters = ['A', 'B', 'C', 'D', 'E'];
-    const cols = 2;
-    const altWidth = LAYOUT.QUESTION.ALTERNATIVE.width;
-    const altHeight = LAYOUT.QUESTION.ALTERNATIVE.height;
-    const gapX = LAYOUT.QUESTION.ALTERNATIVE.gapX;
-    const gapY = LAYOUT.QUESTION.ALTERNATIVE.gapY;
-
-    alternatives.forEach((text, index) => {
-      const alt = new AlternativeButton({
-        width: altWidth,
-        height: altHeight,
-        letter: letters[index] || '',
+    // Atualiza QuestionCard nativo
+    this.questionCard.setQuestion(question.text);
+    
+    // Atualiza AlternativesGrid nativo
+    if (this.alternativesGrid && typeof this.alternativesGrid.setAlternatives === 'function') {
+      const alternatives = question.alternatives.map((text, index) => ({
+        letter: String.fromCharCode(65 + index), // A, B, C, D
         text,
-      });
-
-      const row = Math.floor(index / cols);
-      const col = index % cols;
-      alt.position.set(
-        col * (altWidth + gapX),
-        row * (altHeight + gapY)
-      );
-
-      alt.onClick = () => this.selectAlternative(index);
-      this.alternativesContainer.addChild(alt);
-      this.alternatives.push(alt);
-    });
-  }
-
-  private selectAlternative(index: number): void {
-    // Desmarca alternativa anterior
-    if (this.selectedAlternativeIndex !== null) {
-      this.alternatives[this.selectedAlternativeIndex]?.setState('normal');
-    }
-
-    // Marca nova alternativa
-    this.selectedAlternativeIndex = index;
-    this.alternatives[index]?.setState('selected');
-
-    console.log(`Alternative ${index} selected`);
-
-    // Simula resposta após 1 segundo
-    setTimeout(() => this.checkAnswer(), 1000);
-  }
-
-  private checkAnswer(): void {
-    if (this.selectedAlternativeIndex === null || !this.currentQuestion) return;
-
-    const isCorrect = this.selectedAlternativeIndex === this.currentQuestion.correctIndex;
-
-    // Atualiza estado das alternativas
-    this.alternatives.forEach((alt, index) => {
-      if (index === this.currentQuestion!.correctIndex) {
-        alt.setState('correct');
-      } else if (index === this.selectedAlternativeIndex) {
-        alt.setState('wrong');
-      } else {
-        alt.setState('disabled');
-      }
-    });
-
-    // Gerencia sistema de streak
-    if (isCorrect) {
-      const newStreak = this.streakSystem.increment();
-      
-      if (newStreak === 1) {
-        // Primeira acertada: mostra indicador
-        this.streakIndicator.show(this.streakSystem.getLevel());
-      } else if (newStreak <= 5) {
-        // Incrementa animação
-        this.streakIndicator.increment(this.streakSystem.getLevel());
-      }
-      
-      const multiplier = this.streakSystem.getMultiplier();
-      console.log(`✅ Correto! Streak: ${newStreak}x (multiplicador: ${multiplier}x)`);
+        isCorrect: question.correctIndex === index,
+      }));
+      this.alternativesGrid.reset();
+      this.alternativesGrid.setAlternatives(alternatives);
     } else {
-      // Reseta streak ao errar
-      if (this.streakSystem.getCurrent() > 0) {
-        this.streakIndicator.hide();
-        this.streakSystem.reset();
-      }
-      console.log('❌ Errado! Streak resetado.');
+      console.warn('AlternativesGrid ou setAlternatives não inicializado!');
+    }
+    
+    // Atualiza progress bar
+    const progressValue = (this.currentQuestionIndex + 1) / this.totalQuestions;
+    this.headerHUD.setProgress(progressValue);
+  }
+  
+  private handleAlternativeClick(letter: string): void {
+    if (!this.currentQuestion || this.gameState !== 'playing' || this.feedbackShowing) return;
+
+    // Converte letra (A, B, C, D) para index (0, 1, 2, 3)
+    const selectedIndex = letter.charCodeAt(0) - 65;
+    const isCorrect = this.currentQuestion.correctIndex === selectedIndex;
+    
+    // Desabilitar todos os botões após resposta
+    ['A', 'B', 'C', 'D'].forEach((l) => this.alternativesGrid.disableButton(l));
+    
+    // Mostrar feedback visual (correto/errado)
+    if (isCorrect) {
+      this.alternativesGrid.markCorrect(letter);
+      this.correctAnswers++;
+      const baseScore = 100;
+      const timeBonus = Math.max(0, Math.floor(this.timerMs / 1000) * 10); // 10 pts por segundo restante
+      const roundScore = baseScore + timeBonus;
+      this.score += roundScore;
+      this.streakSystem.increment();
+      console.log(`✅ Resposta correta! +${roundScore} pts (streak: ${this.streakSystem.getCurrent()})`);
+    } else {
+      this.alternativesGrid.markWrong(letter);
+      // Mostrar resposta correta
+      const correctLetter = String.fromCharCode(65 + this.currentQuestion.correctIndex);
+      this.alternativesGrid.markCorrect(correctLetter);
+      this.streakSystem.reset();
+      console.log(`❌ Resposta errada! Streak resetado.`);
     }
 
-    // Simula próxima questão após 2 segundos
-    setTimeout(() => this.nextQuestion(), 2000);
+    this.totalAnswered++;
+    this.feedbackShowing = true;
+    this.gameState = 'feedback';
+  }
+
+  private handleTimeoutQuestion(): void {
+    if (!this.currentQuestion) return;
+    
+    console.log('⏱️ Tempo esgotado!');
+    this.streakSystem.reset();
+    
+    // Desabilitar todos os botões
+    ['A', 'B', 'C', 'D'].forEach((l) => this.alternativesGrid.disableButton(l));
+    
+    // Mostrar resposta correta
+    const correctLetter = String.fromCharCode(65 + this.currentQuestion.correctIndex);
+    this.alternativesGrid.markCorrect(correctLetter);
+    
+    this.totalAnswered++;
+    this.feedbackShowing = true;
+    this.feedbackDuration = 1000; // Menor tempo para timeout
+    this.gameState = 'feedback';
   }
 
   private nextQuestion(): void {
     this.currentQuestionIndex++;
-    this.selectedAlternativeIndex = null;
 
     if (this.currentQuestionIndex >= this.totalQuestions) {
       console.log('🎉 Rodada finalizada!');
+      console.log(`📊 Pontuação final: ${this.score} pontos`);
+      console.log(`✅ Acertos: ${this.correctAnswers}/${this.totalAnswered}`);
+      this.gameState = 'between_questions';
       return;
     }
 
-    // Simula carregamento de próxima questão
-    // TODO: Implementar QuestionRepository
-    console.log(`Próxima questão: ${this.currentQuestionIndex + 1}/${this.totalQuestions}`);
+    // Carregar próxima questão
+    if (this.allQuestions[this.currentQuestionIndex]) {
+      const nextQuestion = this.allQuestions[this.currentQuestionIndex];
+      if (nextQuestion) {
+        this.currentQuestion = nextQuestion;
+        this.timerMs = this.timerDuration; // Reset timer
+        this.gameState = 'playing';
+        
+        // Habilitar todos os botões novamente
+        ['A', 'B', 'C', 'D'].forEach((l) => this.alternativesGrid.enableButton(l));
+        
+        this.displayQuestion(this.currentQuestion);
+        console.log(`📋 Pergunta ${this.currentQuestionIndex + 1}/${this.totalQuestions}`);
+      }
+    }
   }
 
   private useHint(): void {
-    if (this.hintButton.use()) {
-      console.log('💡 Dica usada!');
-      // TODO: Mostrar dica/explicação
-    }
+    if (this.powerUpCounters.hint <= 0 || !this.currentQuestion) return;
+    
+    this.powerUpCounters.hint--;
+    console.log(`💡 Dica usada! Restam: ${this.powerUpCounters.hint}`);
+    
+    // Remove 2 alternativas incorretas aleatoriamente
+    const incorrectIndices = this.currentQuestion.alternatives
+      .map((_, idx) => idx)
+      .filter((idx) => idx !== this.currentQuestion!.correctIndex);
+    
+    // Shuffle e remove as 2 primeiras
+    incorrectIndices.sort(() => Math.random() - 0.5);
+    const toRemove = incorrectIndices.slice(0, 2);
+    
+    toRemove.forEach((idx) => {
+      const letter = String.fromCharCode(65 + idx);
+      this.alternativesGrid.disableButton(letter);
+    });
+    
+    this.footerHUD.updatePowerUpCounter('hint', this.powerUpCounters.hint);
   }
 
   private useRemoveAlternative(): void {
-    if (this.removeButton.use() && this.currentQuestion) {
-      console.log('🗑️ Remover alternativa usada!');
-      // Remove 2 alternativas incorretas
-      let removed = 0;
-      this.alternatives.forEach((alt, index) => {
-        if (removed < 2 && index !== this.currentQuestion!.correctIndex && alt.getState() !== 'disabled') {
-          alt.setState('disabled');
-          removed++;
-        }
-      });
+    if (this.powerUpCounters.remove <= 0 || !this.currentQuestion) return;
+    
+    this.powerUpCounters.remove--;
+    console.log(`🗑️ Remover alternativa usada! Restam: ${this.powerUpCounters.remove}`);
+    
+    // Remove 1 alternativa incorreta aleatoriamente
+    const incorrectIndices = this.currentQuestion.alternatives
+      .map((_, idx) => idx)
+      .filter((idx) => idx !== this.currentQuestion!.correctIndex);
+    
+    if (incorrectIndices.length > 0) {
+      const randomIdx = incorrectIndices[Math.floor(Math.random() * incorrectIndices.length)]!;
+      const letter = String.fromCharCode(65 + randomIdx);
+      this.alternativesGrid.disableButton(letter);
     }
+    
+    this.footerHUD.updatePowerUpCounter('remove', this.powerUpCounters.remove);
   }
 
   private skipQuestion(): void {
-    if (this.skipButton.use()) {
-      console.log('⏭️ Questão pulada!');
-      
-      // Pular também reseta streak
-      if (this.streakSystem.getCurrent() > 0) {
-        this.streakIndicator.hide();
-        this.streakSystem.reset();
-      }
-      
-      this.nextQuestion();
+    if (this.powerUpCounters.skip <= 0) return;
+    
+    this.powerUpCounters.skip--;
+    console.log(`⏭️ Questão pulada! Restam: ${this.powerUpCounters.skip}`);
+    
+    // Reseta streak ao pular
+    if (this.streakSystem.getCurrent() > 0) {
+      this.streakSystem.reset();
     }
+    
+    // Desabilitar todos os botões
+    ['A', 'B', 'C', 'D'].forEach((l) => this.alternativesGrid.disableButton(l));
+    this.feedbackShowing = true;
+    this.feedbackDuration = 500; // Transição rápida
+    this.gameState = 'feedback';
+    
+    this.footerHUD.updatePowerUpCounter('skip', this.powerUpCounters.skip);
   }
 
-  update(_delta: number): void {
-    // Atualizar drag do painel de controles
+  public override update(delta: number): void {
+    // Game loop - Timer countdown
+    if (this.gameState === 'playing' && !this.feedbackShowing) {
+      this.timerMs -= delta * 1000; // delta já é em segundos (Pixi.js), converte para ms
+
+      // Perde questão se tempo acabar
+      if (this.timerMs <= 0) {
+        this.timerMs = 0;
+        this.handleTimeoutQuestion();
+      }
+    }
+
+    // Feedback visual (espera antes de próxima pergunta)
+    if (this.feedbackShowing) {
+      this.feedbackTimer += delta * 1000;
+      if (this.feedbackTimer >= this.feedbackDuration) {
+        this.feedbackShowing = false;
+        this.feedbackTimer = 0;
+        this.nextQuestion();
+      }
+    }
+
+    // Atualizar drag do painel de controles (legado debug)
     if (this.debugControlPanel) {
       const mousePos = this.app.renderer.events.pointer;
       this.debugControlPanel.update(mousePos.global.x, mousePos.global.y);
     }
-    
-    // TODO: Atualizar timer
-    // const currentTime = this.timerCircle.getTime();
-    // this.timerCircle.setTime(currentTime - _delta * 16.67, 90000);
   }
 }

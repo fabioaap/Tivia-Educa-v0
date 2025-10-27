@@ -1,6 +1,12 @@
 import { GameApplication } from './core/Application';
 import { environment } from './config/environment';
 
+declare global {
+  interface Window {
+    game?: GameApplication;
+  }
+}
+
 async function main() {
   try {
     // Log ambiente
@@ -16,7 +22,7 @@ async function main() {
 
     // Expõe globalmente para debug (apenas dev)
     if (environment.ENABLE_DEBUG) {
-      (window as any).game = game;
+      window.game = game;
       console.log('✅ Jogo inicializado! Acesse via window.game');
     }
   } catch (error) {

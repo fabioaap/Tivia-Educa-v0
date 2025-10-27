@@ -6,6 +6,10 @@ export { PowerUpButton } from './PowerUpButton';
 export { AlternativeButton } from './AlternativeButton';
 export { StreakIndicator } from './StreakIndicator';
 export { DebugControlPanel } from './DebugControlPanel';
+export { FooterHUD } from './FooterHUD';
+export { QuestionCard } from './QuestionCard';
+export { AlternativesGrid } from './AlternativesGrid';
+export { HeaderHUD } from './HeaderHUD';
 
 export type { ButtonConfig } from './Button';
 export type { RoundedButtonConfig } from './RoundedButton';
